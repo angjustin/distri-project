@@ -1,3 +1,5 @@
+package client;
+
 import java.util.Random;
 
 public final class ReadRequest {
@@ -58,10 +60,11 @@ public final class ReadRequest {
     }
 
     public void print() {
-        System.out.println("Read Request");
+        System.out.println("Type: Read Request");
         System.out.println("Path: " + path);
         System.out.println("Offset: " + offset);
         System.out.println("Length: " + length);
         System.out.println("ID: " + id);
+        System.out.println();
     }
 }
