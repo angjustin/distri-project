@@ -5,6 +5,9 @@ import java.util.Arrays;
 
 public class Marshalling {
     public static byte[] serialize(ReadRequest req) {
+
+        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (1B)
+
         byte[] pathBytes = req.getPath().getBytes();
 
         ByteBuffer b = ByteBuffer.allocate(4);
@@ -14,8 +17,7 @@ public class Marshalling {
 
         byte[] output = new byte[pathBytes.length + 14];
 
-        // 0 - ReadRequest, 1 - WriteRequest, 2 - MonitorRequest
-        output[0] = 0;
+        output[0] = ReadRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
         System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
         System.arraycopy(offsetBytes, 0, output, 5 + pathBytes.length, 4);
@@ -25,14 +27,25 @@ public class Marshalling {
         return output;
     }
 
+    public static byte[] serialize(Reply reply) {
+        // code (1B), result (1B), serialized request (variable)
+        byte[] requestBytes = Marshalling.serialize(reply.getRequest());
+        byte[] output = new byte[requestBytes.length + 2];
+        output[0] = Reply.code;
+        output[1] = reply.getResult();
+        System.arraycopy(requestBytes, 0, output, 2, requestBytes.length);
+        return output;
+    }
+
     public static Object deserialize(byte[] bytes) {
         if (bytes.length == 0) {
             System.out.println("Error: deserialize input null");
             return null;
         }
 
-        if (bytes[0] == 0) {
-            // ReadRequest
+        byte code = bytes[0];
+
+        if (code == ReadRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
             String path = new String(pathBytes);
@@ -42,24 +55,43 @@ public class Marshalling {
 
             return new ReadRequest(path, offset, length, id);
 
-        } else {
+        } else if (code == Reply.code) {
+            byte[] requestBytes = new byte[bytes.length - 2];
+            System.arraycopy(bytes, 2, requestBytes, 0, requestBytes.length);
+            Object request = Marshalling.deserialize(requestBytes);
+            return new Reply(request, bytes[1]);
+        }
+        else {
             System.out.println("Error: request header invalid");
             return null;
         }
     }
 
     public static void main(String[] args) {
-        ReadRequest r = new ReadRequest("/foo", 2, 3);
+        ReadRequest request = new ReadRequest("/foo", 2, 3);
         System.out.println("Testing ReadRequest");
         System.out.println();
         System.out.println("Original");
-        r.print();
+        request.print();
         System.out.println("Reconstructed");
-        ReadRequest rCopy = (ReadRequest) Marshalling.deserialize(Marshalling.serialize(r));
-        assert rCopy != null;
+        ReadRequest requestCopy = (ReadRequest) Marshalling.deserialize(Marshalling.serialize(request));
+        assert requestCopy != null;
 
-        rCopy.print();
-        System.out.println("Both requests equal: " + r.equals(rCopy));
+        requestCopy.print();
+        System.out.println("Both requests equal: " + request.equals(requestCopy));
+        System.out.println();
+
+        Reply reply = new Reply(request, (byte) 1);
+
+        System.out.println("Testing Reply");
+        System.out.println();
+        System.out.println("Original");
+        reply.print();
+
+        System.out.println("Reconstructed");
+        Reply replyCopy = (Reply) Marshalling.deserialize(Marshalling.serialize(reply));
+        assert replyCopy != null;
+        replyCopy.print();
     }
 }
 

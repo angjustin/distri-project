@@ -3,6 +3,7 @@ package client;
 import java.util.Random;
 
 public final class ReadRequest {
+    public static final byte code = 1;
     private final String path;
     private final int offset;
     private final int length;
