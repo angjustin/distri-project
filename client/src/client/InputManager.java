@@ -29,6 +29,4 @@ public class InputManager {
             return getString();
         }
     }
-
-
 }

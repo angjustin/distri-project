@@ -10,7 +10,7 @@ public final class WriteRequest {
     private final byte[] input;
     private final int id;
 
-    public WriteRequest(String path, int offset, int id, byte[] input) {
+    public WriteRequest(String path, int offset, byte[] input, int id) {
         this.path = path;
         this.offset = offset;
         this.id = id;
@@ -58,5 +58,14 @@ public final class WriteRequest {
 
     public int getOffset() {
         return offset;
+    }
+
+    public void print() {
+        System.out.println("Type: Write Request");
+        System.out.println("Path: " + path);
+        System.out.println("Offset: " + offset);
+        System.out.println("Input: " + Arrays.toString(input));
+        System.out.println("ID: " + id);
+        System.out.println();
     }
 }

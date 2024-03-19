@@ -35,6 +35,9 @@ public class Storage {
         if (req.getOffset() >= f.length()) {
             System.out.println("Error: offset exceeds file length");
             return new Reply((byte) 11, req.getId());
+        } else if (req.getOffset() < 0) {
+            System.out.println("Error: offset less than 0");
+            return new Reply((byte) 11, req.getId());
         }
 
         try {
@@ -50,7 +53,36 @@ public class Storage {
             System.out.println("Error: file read error");
             return new Reply((byte) 10, req.getId());
         }
+    }
 
+    public Reply writeBytes(WriteRequest write) {
+        Path p = dirPath.resolve(write.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, write.getId());
+        }
+
+        if (write.getOffset() >= f.length()) {
+            System.out.println("Error: offset exceeds file length");
+            return new Reply((byte) 11, write.getId());
+        }
+
+        try {
+            byte[] bytes = Files.readAllBytes(p);
+            byte[] output = new byte[bytes.length + write.getInput().length];
+
+            System.arraycopy(bytes, 0, output, 0, write.getOffset());
+            System.arraycopy(write.getInput(), 0, output, write.getOffset(), write.getInput().length);
+            System.arraycopy(bytes, write.getOffset(), output,
+                    write.getOffset() + write.getInput().length, bytes.length - write.getOffset());
+
+            Files.write(p, output);
+            return new Reply((byte) 1, write.getId());
+        } catch (Exception e) {
+            System.out.println("Error: file read error");
+            return new Reply((byte) 10, write.getId());
+        }
     }
 
     public void populateStorage(String path, String s) {
@@ -79,8 +111,16 @@ public class Storage {
         String filePath = "test.txt";
         Storage store = new Storage();
         store.populateStorage(filePath, "0123456789");
-        ReadRequest r = new ReadRequest(filePath, 2, 3);
+        ReadRequest r = new ReadRequest(filePath, 0, 999);
+        System.out.println("Reply from read request");
         store.readBytes(r).print();
-        System.out.println("String output: " + new String(store.readBytes(r).getBody()));
+        System.out.println(filePath + ": " + new String(store.readBytes(r).getBody()));
+        System.out.println();
+        System.out.println("Reply from write request");
+        WriteRequest w = new WriteRequest(filePath, 1, " hello ".getBytes());
+        store.writeBytes(w).print();
+        System.out.println("Reply from read request after writing");
+        store.readBytes(r).print();
+        System.out.println(filePath + ": " + new String(store.readBytes(r).getBody()));
     }
 }

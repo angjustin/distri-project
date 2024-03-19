@@ -97,15 +97,25 @@ public class Marshalling {
         if (code == ReadRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
-            String path = new String(pathBytes);
+
             int offset = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
             int length = ByteBuffer.wrap(bytes, 9 + pathLength, 4).getInt();
             int id = ByteBuffer.wrap(bytes, 13 + pathLength, 4).getInt();
 
+            String path = new String(pathBytes);
             return new ReadRequest(path, offset, length, id);
 
         } else if (code == WriteRequest.code) {
-            return null;
+            int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
+            byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
+            int inputLength = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
+            byte[] inputBytes = Arrays.copyOfRange(bytes, 9 + pathLength, 9 + pathLength + inputLength);
+            int offset = ByteBuffer.wrap(bytes, 9 + pathLength + inputLength, 4).getInt();
+            int id = ByteBuffer.wrap(bytes, 13 + pathLength + inputLength, 4).getInt();
+
+            String path = new String(pathBytes);
+            return new WriteRequest(path, offset, inputBytes, id);
+
         } else if (code == Reply.code) {
             byte result = bytes[1];
             int id = ByteBuffer.wrap(bytes, 2, 4).getInt();
@@ -120,32 +130,42 @@ public class Marshalling {
 
     public static void main(String[] args) {
         String filePath = "test.txt";
-        ReadRequest request = new ReadRequest(filePath, 5, 30);
+        ReadRequest readRequest = new ReadRequest(filePath, 5, 30);
+
         System.out.println("Testing Read Request");
         System.out.println();
         System.out.println("Original");
-        request.print();
+        readRequest.print();
         System.out.println("Reconstructed");
-        ReadRequest requestCopy = (ReadRequest) Marshalling.deserialize(Marshalling.serialize(request));
-        assert requestCopy != null;
-
-        requestCopy.print();
-        System.out.println("Both requests equal: " + request.equals(requestCopy));
+        ReadRequest readCopy = (ReadRequest) Marshalling.deserialize(Marshalling.serialize(readRequest));
+        assert readCopy != null;
+        readCopy.print();
+        System.out.println("Both requests equal: " + readRequest.equals(readCopy));
         System.out.println();
 
         Storage store = new Storage();
         store.populateStorage(filePath,"0123456789");
-        Reply reply = store.readBytes(request);
+        Reply reply = store.readBytes(readRequest);
 
         System.out.println("Testing Reply");
         System.out.println();
         System.out.println("Original");
         reply.print();
-
         System.out.println("Reconstructed");
         Reply replyCopy = (Reply) Marshalling.deserialize(Marshalling.serialize(reply));
         assert replyCopy != null;
         replyCopy.print();
+
+        WriteRequest writeRequest = new WriteRequest(filePath, 1,
+                ByteBuffer.allocate(4).putInt(999).array().clone());
+        System.out.println("Testing Write Request");
+        System.out.println();
+        System.out.println("Original");
+        writeRequest.print();
+        System.out.println("Reconstructed");
+        WriteRequest writeCopy = (WriteRequest) Marshalling.deserialize(Marshalling.serialize(writeRequest));
+        assert writeCopy != null;
+        writeCopy.print();
     }
 }
 
