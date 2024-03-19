@@ -7,7 +7,7 @@ public final class ReadRequest {
     private final String path;
     private final int offset;
     private final int length;
-    private final byte id;
+    private final int id;
 
     public String getPath() {
         return path;
@@ -21,7 +21,7 @@ public final class ReadRequest {
         return offset;
     }
 
-    public byte getId() {
+    public int getId() {
         return id;
     }
 
@@ -29,10 +29,10 @@ public final class ReadRequest {
         this.path = path;
         this.offset = offset;
         this.length = length;
-        this.id = (byte) ((new Random().nextInt() * offset + length) % 256 - 128);
+        this.id = new Random().nextInt();
     }
 
-    public ReadRequest(String path, int offset, int length, byte id) {
+    public ReadRequest(String path, int offset, int length, int id) {
         this.path = path;
         this.offset = offset;
         this.length = length;
@@ -57,7 +57,7 @@ public final class ReadRequest {
 
     @Override
     public int hashCode() {
-        return id * path.length() * offset + length;
+        return path.hashCode() + offset + length;
     }
 
     public void print() {

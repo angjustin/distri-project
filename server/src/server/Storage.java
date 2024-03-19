@@ -12,11 +12,11 @@ import static java.lang.Math.min;
 
 public class Storage {
     private Path dirPath;
-    private File dir;
+
     public Storage() {
         dirPath = new JFileChooser().getFileSystemView().getDefaultDirectory().toPath();
         dirPath = dirPath.resolve("CZ4013 Storage");
-        dir = dirPath.toFile();
+        File dir = dirPath.toFile();
         if (dir.mkdirs()) {
             System.out.println("New directory created at " + dirPath);
         } else {
@@ -24,18 +24,18 @@ public class Storage {
         }
     }
 
-    public byte[] readBytes(ReadRequest req) {
+    public Reply readBytes(ReadRequest req) {
 
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
-            return null;
+            return new Reply((byte) 10, req.getId());
         }
 
         if (req.getOffset() >= f.length()) {
             System.out.println("Error: offset exceeds file length");
-            return null;
+            return new Reply((byte) 11, req.getId());
         }
 
         try {
@@ -46,16 +46,16 @@ public class Storage {
 
             System.arraycopy(bytes, req.getOffset(), output, 0, length);
 
-            return output;
+            return new Reply((byte) 0, req.getId(), output);
         } catch (Exception e) {
             System.out.println("Error: file read error");
-            return null;
+            return new Reply((byte) 10, req.getId());
         }
 
     }
 
-    public void populateStorage(String s) {
-        File temp = dirPath.resolve("test.txt").toFile();
+    public void populateStorage(String path, String s) {
+        File temp = dirPath.resolve(path).toFile();
         try {
             if (temp.createNewFile()) {
                 System.out.println("Created " + temp.getName());
@@ -70,16 +70,18 @@ public class Storage {
         try {
             Files.write(temp.toPath(), s.getBytes());
             System.out.println("Wrote " + s + " to " + temp.getName());
+            System.out.println();
         } catch (Exception e) {
             System.out.println("Error: writing to " + temp.getName() + " failed");
         }
     }
 
     public static void main(String[] args) {
+        String filePath = "test.txt";
         Storage store = new Storage();
-        store.populateStorage("0123456789");
-        ReadRequest r = new ReadRequest("test.txt", 2, 3);
-        System.out.println(Arrays.toString(store.readBytes(r)));
-        System.out.println(new String(store.readBytes(r)));
+        store.populateStorage(filePath, "0123456789");
+        ReadRequest r = new ReadRequest(filePath, 2, 3);
+        store.readBytes(r).print();
+        System.out.println("String output: " + new String(store.readBytes(r).getBody()));
     }
 }

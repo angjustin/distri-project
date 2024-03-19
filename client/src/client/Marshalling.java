@@ -1,12 +1,14 @@
 package client;
 
+import server.Storage;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class Marshalling {
     public static byte[] serialize(ReadRequest req) {
 
-        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (1B)
+        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (4B)
 
         byte[] pathBytes = req.getPath().getBytes();
 
@@ -14,26 +16,36 @@ public class Marshalling {
         byte[] pathLengthBytes = b.putInt(0, pathBytes.length).array().clone();
         byte[] offsetBytes = b.putInt(0, req.getOffset()).array().clone();
         byte[] lengthBytes = b.putInt(0, req.getLength()).array().clone();
+        byte[] idBytes = b.putInt(0, req.getId()).array().clone();
 
-        byte[] output = new byte[pathBytes.length + 14];
+        byte[] output = new byte[pathBytes.length
+                + pathLengthBytes.length
+                + offsetBytes.length
+                + lengthBytes.length
+                + idBytes.length
+                + 1];
 
         output[0] = ReadRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
         System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
         System.arraycopy(offsetBytes, 0, output, 5 + pathBytes.length, 4);
         System.arraycopy(lengthBytes, 0, output, 9 + pathBytes.length, 4);
-        output[output.length - 1] = req.getId();
+        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length, 4);
 
         return output;
     }
 
     public static byte[] serialize(Reply reply) {
-        // code (1B), result (1B), serialized request (variable)
-        byte[] requestBytes = Marshalling.serialize(reply.getRequest());
-        byte[] output = new byte[requestBytes.length + 2];
+        // code (1B), result (1B), ID (4B), body (variable)
+
+        byte[] output = new byte[reply.getBody().length + 6];
         output[0] = Reply.code;
         output[1] = reply.getResult();
-        System.arraycopy(requestBytes, 0, output, 2, requestBytes.length);
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] idBytes = b.putInt(0, reply.getId()).array().clone();
+        System.arraycopy(idBytes, 0, output, 2, 4);
+        System.arraycopy(reply.getBody(), 0, output, 6, reply.getBody().length);
+
         return output;
     }
 
@@ -51,15 +63,16 @@ public class Marshalling {
             String path = new String(pathBytes);
             int offset = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
             int length = ByteBuffer.wrap(bytes, 9 + pathLength, 4).getInt();
-            byte id = bytes[bytes.length - 1];
+            int id = ByteBuffer.wrap(bytes, 13 + pathLength, 4).getInt();
 
             return new ReadRequest(path, offset, length, id);
 
         } else if (code == Reply.code) {
-            byte[] requestBytes = new byte[bytes.length - 2];
-            System.arraycopy(bytes, 2, requestBytes, 0, requestBytes.length);
-            Object request = Marshalling.deserialize(requestBytes);
-            return new Reply(request, bytes[1]);
+            byte result = bytes[1];
+            int id = ByteBuffer.wrap(bytes, 2, 4).getInt();
+            byte[] body = Arrays.copyOfRange(bytes, 6, bytes.length);
+
+            return new Reply(result, id, body);
         }
         else {
             System.out.println("Error: request header invalid");
@@ -68,8 +81,9 @@ public class Marshalling {
     }
 
     public static void main(String[] args) {
-        ReadRequest request = new ReadRequest("/foo", 2, 3);
-        System.out.println("Testing ReadRequest");
+        String filePath = "test.txt";
+        ReadRequest request = new ReadRequest(filePath, 2, 3);
+        System.out.println("Testing Read Request");
         System.out.println();
         System.out.println("Original");
         request.print();
@@ -81,7 +95,9 @@ public class Marshalling {
         System.out.println("Both requests equal: " + request.equals(requestCopy));
         System.out.println();
 
-        Reply reply = new Reply(request, (byte) 1);
+        Storage store = new Storage();
+        store.populateStorage(filePath,"0123456789");
+        Reply reply = store.readBytes(request);
 
         System.out.println("Testing Reply");
         System.out.println();
