@@ -5,11 +5,13 @@ import server.Storage;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 public class Marshalling {
     public static byte[] serialize(ReadRequest req) {
         if (req == null) return null;
-        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (4B)
+        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (4B), checksum (1B)
 
         byte[] pathBytes = req.getPath().getBytes();
 
@@ -24,7 +26,7 @@ public class Marshalling {
                 + offsetBytes.length
                 + lengthBytes.length
                 + idBytes.length
-                + 1];
+                + 2];   // code + checksum
 
         output[0] = ReadRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
@@ -33,12 +35,16 @@ public class Marshalling {
         System.arraycopy(lengthBytes, 0, output, 9 + pathBytes.length, 4);
         System.arraycopy(idBytes, 0, output, 13 + pathBytes.length, 4);
 
+        Checksum crc32 = new CRC32();
+        crc32.update(output, 0, output.length - 1);
+        byte checksum = (byte) (crc32.getValue() % 256 - 128);
+        output[output.length - 1] = checksum;
         return output;
     }
 
     public static byte[] serialize(WriteRequest req) {
         if (req == null) return null;
-        // code (1B), path length (4B), path (variable),
+        // code (1B), path length (4B), path (variable), checksum (1B)
         // input length (4B), input (variable),
         // offset (4B), id (4B)
 
@@ -56,7 +62,7 @@ public class Marshalling {
                 + req.getInput().length
                 + offsetBytes.length
                 + idBytes.length
-                + 1];
+                + 2];
 
         output[0] = WriteRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
@@ -66,15 +72,19 @@ public class Marshalling {
         System.arraycopy(offsetBytes, 0, output, 9 + pathBytes.length + req.getInput().length, 4);
         System.arraycopy(idBytes, 0, output, 13 + pathBytes.length + req.getInput().length, 4);
 
+        Checksum crc32 = new CRC32();
+        crc32.update(output, 0, output.length - 1);
+        byte checksum = (byte) (crc32.getValue() % 256 - 128);
+        output[output.length - 1] = checksum;
         return output;
     }
 
     public static byte[] serialize(Reply reply) {
         if (reply == null) return null;
 
-        // code (1B), result (1B), ID (4B), body (variable)
+        // code (1B), result (1B), ID (4B), body (variable), checksum (1B)
 
-        byte[] output = new byte[reply.getBody().length + 6];
+        byte[] output = new byte[reply.getBody().length + 7];
         output[0] = Reply.code;
         output[1] = reply.getResult();
         ByteBuffer b = ByteBuffer.allocate(4);
@@ -82,15 +92,29 @@ public class Marshalling {
         System.arraycopy(idBytes, 0, output, 2, 4);
         System.arraycopy(reply.getBody(), 0, output, 6, reply.getBody().length);
 
+        Checksum crc32 = new CRC32();
+        crc32.update(output, 0, output.length - 1);
+        byte checksum = (byte) (crc32.getValue() % 256 - 128);
+        output[output.length - 1] = checksum;
         return output;
     }
 
-    public static Object deserialize(byte[] bytes) {
-        if (bytes == null) return null;
-        if (bytes.length == 0) {
-            System.out.println("Error: deserialize input null");
+    public static Object deserialize(byte[] raw) {
+        if (raw == null) return null;
+        if (raw.length == 0) {
+            System.out.println("Error: deserialize input empty");
             return null;
         }
+
+        Checksum crc32 = new CRC32();
+        crc32.update(raw, 0, raw.length - 1);
+        byte checksum = (byte) (crc32.getValue() % 256 - 128);
+        if (raw[raw.length - 1] != checksum) {
+            System.out.println("Error: checksum invalid");
+            return null;
+        }
+
+        byte[] bytes = Arrays.copyOfRange(raw, 0, raw.length - 1);
 
         byte code = bytes[0];
 
