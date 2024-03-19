@@ -27,7 +27,7 @@ public class Marshalling {
 
     public static Object deserialize(byte[] bytes) {
         if (bytes.length == 0) {
-            System.out.println("Deserialize input null!");
+            System.out.println("Error: deserialize input null");
             return null;
         }
 
@@ -43,7 +43,7 @@ public class Marshalling {
             return new ReadRequest(path, offset, length, id);
 
         } else {
-            System.out.println("Request header invalid!");
+            System.out.println("Error: request header invalid");
             return null;
         }
     }
