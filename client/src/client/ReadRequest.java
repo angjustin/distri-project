@@ -8,6 +8,19 @@ public final class ReadRequest {
     private final int offset;
     private final int length;
     private final int id;
+    public ReadRequest(String path, int offset, int length) {
+        this.path = path;
+        this.offset = offset;
+        this.length = length;
+        this.id = new Random().nextInt();
+    }
+
+    public ReadRequest(String path, int offset, int length, int id) {
+        this.path = path;
+        this.offset = offset;
+        this.length = length;
+        this.id = id;
+    }
 
     public String getPath() {
         return path;
@@ -23,20 +36,6 @@ public final class ReadRequest {
 
     public int getId() {
         return id;
-    }
-
-    public ReadRequest(String path, int offset, int length) {
-        this.path = path;
-        this.offset = offset;
-        this.length = length;
-        this.id = new Random().nextInt();
-    }
-
-    public ReadRequest(String path, int offset, int length, int id) {
-        this.path = path;
-        this.offset = offset;
-        this.length = length;
-        this.id = id;
     }
 
     @Override

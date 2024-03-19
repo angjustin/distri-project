@@ -35,6 +35,38 @@ public class Marshalling {
         return output;
     }
 
+    public static byte[] serialize(WriteRequest req) {
+        // code (1B), path length (4B), path (variable),
+        // input length (4B), input (variable),
+        // offset (4B), id (4B)
+
+        byte[] pathBytes = req.getPath().getBytes();
+
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] pathLengthBytes = b.putInt(0, pathBytes.length).array().clone();
+        byte[] offsetBytes = b.putInt(0, req.getOffset()).array().clone();
+        byte[] inputLengthBytes = b.putInt(0, req.getInput().length).array().clone();
+        byte[] idBytes = b.putInt(0, req.getId()).array().clone();
+
+        byte[] output = new byte[pathBytes.length
+                + pathLengthBytes.length
+                + inputLengthBytes.length
+                + req.getInput().length
+                + offsetBytes.length
+                + idBytes.length
+                + 1];
+
+        output[0] = WriteRequest.code;
+        System.arraycopy(pathLengthBytes, 0, output, 1, 4);
+        System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
+        System.arraycopy(inputLengthBytes, 0, output, 5 + pathBytes.length, 4);
+        System.arraycopy(req.getInput(), 0, output, 9 + pathBytes.length, req.getInput().length);
+        System.arraycopy(offsetBytes, 0, output, 9 + pathBytes.length + req.getInput().length, 4);
+        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length + req.getInput().length, 4);
+
+        return output;
+    }
+
     public static byte[] serialize(Reply reply) {
         // code (1B), result (1B), ID (4B), body (variable)
 
