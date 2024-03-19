@@ -1,4 +1,4 @@
-package client;
+package server;
 
 import java.util.Arrays;
 
@@ -34,7 +34,7 @@ public final class Reply {
     public Reply(byte result, int id) {
         this.result = result;
         this.id = id;
-        this.body = null;
+        this.body = new byte[0];
     }
 
 

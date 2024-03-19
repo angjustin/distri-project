@@ -1,5 +1,6 @@
 package client;
 
+import server.Reply;
 import server.Storage;
 
 import java.nio.ByteBuffer;
@@ -7,7 +8,7 @@ import java.util.Arrays;
 
 public class Marshalling {
     public static byte[] serialize(ReadRequest req) {
-
+        if (req == null) return null;
         // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (4B)
 
         byte[] pathBytes = req.getPath().getBytes();
@@ -36,6 +37,7 @@ public class Marshalling {
     }
 
     public static byte[] serialize(WriteRequest req) {
+        if (req == null) return null;
         // code (1B), path length (4B), path (variable),
         // input length (4B), input (variable),
         // offset (4B), id (4B)
@@ -68,6 +70,8 @@ public class Marshalling {
     }
 
     public static byte[] serialize(Reply reply) {
+        if (reply == null) return null;
+
         // code (1B), result (1B), ID (4B), body (variable)
 
         byte[] output = new byte[reply.getBody().length + 6];
@@ -82,6 +86,7 @@ public class Marshalling {
     }
 
     public static Object deserialize(byte[] bytes) {
+        if (bytes == null) return null;
         if (bytes.length == 0) {
             System.out.println("Error: deserialize input null");
             return null;
@@ -99,14 +104,15 @@ public class Marshalling {
 
             return new ReadRequest(path, offset, length, id);
 
+        } else if (code == WriteRequest.code) {
+            return null;
         } else if (code == Reply.code) {
             byte result = bytes[1];
             int id = ByteBuffer.wrap(bytes, 2, 4).getInt();
             byte[] body = Arrays.copyOfRange(bytes, 6, bytes.length);
 
             return new Reply(result, id, body);
-        }
-        else {
+        } else {
             System.out.println("Error: request header invalid");
             return null;
         }
@@ -114,7 +120,7 @@ public class Marshalling {
 
     public static void main(String[] args) {
         String filePath = "test.txt";
-        ReadRequest request = new ReadRequest(filePath, 2, 3);
+        ReadRequest request = new ReadRequest(filePath, 5, 30);
         System.out.println("Testing Read Request");
         System.out.println();
         System.out.println("Original");
