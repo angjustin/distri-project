@@ -56,7 +56,10 @@ public class Marshalling {
         System.out.println("Reconstructed");
         ReadRequest rCopy = (ReadRequest) Marshalling.deserialize(Marshalling.serialize(r));
         assert rCopy != null;
+
         rCopy.print();
+        System.out.println();
+        System.out.println("Both requests equal: " + r.equals(rCopy));
     }
 }
 
