@@ -14,10 +14,18 @@ public class Client {
             InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
 
             while (true) {
+                System.out.print("Enter file pathname: ");
                 BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
-                String message = userInput.readLine();
-                byte[] sendBuffer = message.getBytes();
+                String filePath = userInput.readLine();
+                System.out.print("Enter offset (in bytes): ");
+                int offset = Integer.parseInt(userInput.readLine());
+                System.out.print("Enter number of bytes to read: ");
+                int bytesToRead = Integer.parseInt(userInput.readLine());
 
+                // Create ReadRequest object
+                ReadRequest readRequest = new ReadRequest(filePath,offset,bytesToRead);
+                // Serialize ReadRequest object
+                byte[] sendBuffer = Marshalling.serialize(readRequest);
                 DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
                 socket.send(sendPacket);
 

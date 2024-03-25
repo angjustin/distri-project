@@ -1,7 +1,12 @@
 package server;
 
+import client.Marshalling;
+import client.ReadRequest;
+
 import java.io.*;
 import java.net.*;
+import java.util.Arrays;
+
 public class Server {
     private static final int PORT = 2222;
     public static void main(String[] args) {
@@ -12,10 +17,11 @@ public class Server {
                 byte[] receiveBuffer = new byte[1024];
                 DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                 socket.receive(receivePacket);
-
-                String request = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                String response = handleRequest(request);
-
+                // Get the length of received data and only deserialize that portion
+                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                ReadRequest r = (ReadRequest) Marshalling.deserialize(receivedData);
+                Storage store = new Storage();
+                String response = new String(store.readBytes(r).getBody());
                 byte[] sendBuffer = response.getBytes();
                 DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
                 socket.send(sendPacket);
@@ -23,11 +29,5 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static String handleRequest(String request) {
-        // Implement request handling logic here
-        System.out.println("request: " + request);
-        return "Response to " + request;
     }
 }
