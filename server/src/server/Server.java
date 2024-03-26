@@ -38,17 +38,18 @@ public class Server {
 
     private static void handleReadRequest(ReadRequest readRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
         Storage store = new Storage();
-        String response = new String(store.readBytes(readRequest).getBody());
-        byte[] sendBuffer = response.getBytes();
+        Reply response = store.readBytes(readRequest);
+        byte[] sendBuffer = response.getBody();
         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
         socket.send(sendPacket);
     }
 
     private static void handleWriteRequest(WriteRequest writeRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
          Storage store = new Storage();
-         store.writeBytes(writeRequest);
+         Reply reply = store.writeBytes(writeRequest);
+         // byte[] sendBuffer = response.getBody();
          String response = "Write request handled successfully" ;
-         byte[] sendBuffer = response.getBytes();
+         byte [] sendBuffer = response.getBytes();
          DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
          socket.send(sendPacket);
     }
