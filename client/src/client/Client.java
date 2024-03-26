@@ -45,14 +45,41 @@ public class Client {
                         byte[] sendBuffer = Marshalling.serialize(readRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
                         socket.send(sendPacket);
+
+                        // Receive from server
                         byte[] receiveBuffer = new byte[1024];
                         DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                         socket.receive(receivePacket);
-                        String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                        String response = new String(receivePacket.getData(),   0, receivePacket.getLength());
                         System.out.println("Response from server: " + response);
                     }
-                    case 2 ->
-                            System.out.println("Service 2: Insert content into a file by specifying pathname, offset, and sequence of bytes.");
+                    case 2 -> {
+                        System.out.println("Service 2: Insert content into a file by specifying pathname, offset, and sequence of bytes.");
+                        System.out.print("Enter file pathname: ");
+                        BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+                        String filePath = userInput.readLine();
+                        System.out.print("Enter offset (in bytes): ");
+                        int offset = Integer.parseInt(userInput.readLine());
+                        System.out.print("Enter sequence of bytes to write: ");
+                        String stringToWrite = userInput.readLine();
+                        byte [] bytesToWrite = stringToWrite.getBytes();
+
+                        // Create WriteRequest object
+                        WriteRequest writeRequest = new WriteRequest(filePath, offset, bytesToWrite);
+                        // Serialize WriteRequest object
+                        byte [] sendBuffer = Marshalling.serialize(writeRequest);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        socket.send(sendPacket);
+
+                        // Receive from server
+                        byte[] receiveBuffer = new byte[1024];
+                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                        socket.receive(receivePacket);
+                        String response = new String(receivePacket.getData(),   0, receivePacket.getLength());
+                        System.out.println("Response from server: " + response);
+
+                    }
+
                     case 3 ->
                             System.out.println("Service 3: Monitor updates made to a file's content for a designated time period.");
                     case 4 -> {

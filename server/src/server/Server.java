@@ -2,6 +2,7 @@ package server;
 
 import client.Marshalling;
 import client.ReadRequest;
+import client.WriteRequest;
 
 import java.io.*;
 import java.net.*;
@@ -19,15 +20,36 @@ public class Server {
                 socket.receive(receivePacket);
                 // Get the length of received data and only deserialize that portion
                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                ReadRequest r = (ReadRequest) Marshalling.deserialize(receivedData);
-                Storage store = new Storage();
-                String response = new String(store.readBytes(r).getBody());
-                byte[] sendBuffer = response.getBytes();
-                DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                socket.send(sendPacket);
+                Object request = Marshalling.deserialize(receivedData);
+
+                if (request instanceof ReadRequest){
+                    handleReadRequest((ReadRequest) request, receivePacket.getAddress(), receivePacket.getPort(), socket);
+                }
+                else if (request instanceof WriteRequest) {
+                    handleWriteRequest((WriteRequest) request, receivePacket.getAddress(), receivePacket.getPort(), socket);
+                } else {
+                    System.err.println("Unknown request type.");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void handleReadRequest(ReadRequest readRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
+        Storage store = new Storage();
+        String response = new String(store.readBytes(readRequest).getBody());
+        byte[] sendBuffer = response.getBytes();
+        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
+        socket.send(sendPacket);
+    }
+
+    private static void handleWriteRequest(WriteRequest writeRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
+         Storage store = new Storage();
+         store.writeBytes(writeRequest);
+         String response = "Write request handled successfully" ;
+         byte[] sendBuffer = response.getBytes();
+         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
+         socket.send(sendPacket);
     }
 }
