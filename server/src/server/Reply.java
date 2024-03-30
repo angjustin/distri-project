@@ -12,9 +12,9 @@ public final class Reply {
     // 11 - Offset exceeds file length
     private final byte result;
     private final byte[] body;
-    private final int id;
+    private final long id;
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
@@ -26,12 +26,12 @@ public final class Reply {
         return body;
     }
 
-    public Reply(byte result, int id, byte[] body) {
+    public Reply(byte result, long id, byte[] body) {
         this.result = result;
         this.id = id;
         this.body = body;
     }
-    public Reply(byte result, int id) {
+    public Reply(byte result, long id) {
         this.result = result;
         this.id = id;
         this.body = new byte[0];

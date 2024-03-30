@@ -1,16 +1,16 @@
 package client;
 
+import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Random;
 
 public final class WriteRequest {
     public static final byte code = 2;
     private final String path;
     private final int offset;
     private final byte[] input;
-    private final int id;
+    private final long id;
 
-    public WriteRequest(String path, int offset, byte[] input, int id) {
+    public WriteRequest(String path, int offset, byte[] input, long id) {
         this.path = path;
         this.offset = offset;
         this.id = id;
@@ -21,7 +21,7 @@ public final class WriteRequest {
         this.path = path;
         this.offset = offset;
         this.input = input;
-        this.id = new Random().nextInt();
+        this.id = new SecureRandom().nextLong();
     }
     @Override
     public boolean equals(Object o) {
@@ -52,7 +52,7 @@ public final class WriteRequest {
         return input;
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 

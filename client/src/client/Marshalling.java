@@ -5,21 +5,30 @@ import server.Storage;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.zip.CRC32;
-import java.util.zip.Checksum;
 
 public class Marshalling {
+
+    public static byte[] getBytes(int x) {
+        ByteBuffer b = ByteBuffer.allocate(4);
+        return b.putInt(x).array();
+    }
+
+    public static byte[] getBytes(long x) {
+        ByteBuffer b = ByteBuffer.allocate(8);
+        return b.putLong(x).array();
+    }
+
     public static byte[] serialize(ReadRequest req) {
         if (req == null) return null;
-        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (4B), checksum (2B)
+        // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (8B)
 
         byte[] pathBytes = req.getPath().getBytes();
 
         ByteBuffer b = ByteBuffer.allocate(4);
-        byte[] pathLengthBytes = b.putInt(0, pathBytes.length).array().clone();
-        byte[] offsetBytes = b.putInt(0, req.getOffset()).array().clone();
-        byte[] lengthBytes = b.putInt(0, req.getLength()).array().clone();
-        byte[] idBytes = b.putInt(0, req.getId()).array().clone();
+        byte[] pathLengthBytes = getBytes(pathBytes.length);
+        byte[] offsetBytes = getBytes(req.getOffset());
+        byte[] lengthBytes = getBytes(req.getLength());
+        byte[] idBytes = getBytes(req.getId());
 
         byte[] output = new byte[pathBytes.length
                 + pathLengthBytes.length
@@ -33,29 +42,23 @@ public class Marshalling {
         System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
         System.arraycopy(offsetBytes, 0, output, 5 + pathBytes.length, 4);
         System.arraycopy(lengthBytes, 0, output, 9 + pathBytes.length, 4);
-        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length, 4);
+        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length, 8);
 
-        Checksum crc32 = new CRC32();
-        crc32.update(output, 0, output.length - 2);
-        short checksum = (short) (crc32.getValue() % 65536);
-        byte[] checksumBytes = ByteBuffer.allocate(2).putShort(checksum).array();
-        System.arraycopy(checksumBytes, 0, output, 17 + pathBytes.length, 2);
         return output;
     }
 
     public static byte[] serialize(WriteRequest req) {
         if (req == null) return null;
-        // code (1B), path length (4B), path (variable), checksum (2B)
+        // code (1B), path length (4B), path (variable)
         // input length (4B), input (variable),
-        // offset (4B), id (4B)
+        // offset (4B), id (8B)
 
         byte[] pathBytes = req.getPath().getBytes();
 
-        ByteBuffer b = ByteBuffer.allocate(4);
-        byte[] pathLengthBytes = b.putInt(0, pathBytes.length).array().clone();
-        byte[] offsetBytes = b.putInt(0, req.getOffset()).array().clone();
-        byte[] inputLengthBytes = b.putInt(0, req.getInput().length).array().clone();
-        byte[] idBytes = b.putInt(0, req.getId()).array().clone();
+        byte[] pathLengthBytes = getBytes(pathBytes.length);
+        byte[] offsetBytes = getBytes(req.getOffset());
+        byte[] inputLengthBytes = getBytes(req.getInput().length);
+        byte[] idBytes = getBytes(req.getId());
 
         byte[] output = new byte[pathBytes.length
                 + pathLengthBytes.length
@@ -71,54 +74,32 @@ public class Marshalling {
         System.arraycopy(inputLengthBytes, 0, output, 5 + pathBytes.length, 4);
         System.arraycopy(req.getInput(), 0, output, 9 + pathBytes.length, req.getInput().length);
         System.arraycopy(offsetBytes, 0, output, 9 + pathBytes.length + req.getInput().length, 4);
-        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length + req.getInput().length, 4);
+        System.arraycopy(idBytes, 0, output, 13 + pathBytes.length + req.getInput().length, 8);
 
-        Checksum crc32 = new CRC32();
-        crc32.update(output, 0, output.length - 2);
-        short checksum = (short) (crc32.getValue() % 65536);
-        byte[] checksumBytes = ByteBuffer.allocate(2).putShort(checksum).array();
-        System.arraycopy(checksumBytes, 0, output, 17 + pathBytes.length + req.getInput().length, 2);
         return output;
     }
 
     public static byte[] serialize(Reply reply) {
         if (reply == null) return null;
 
-        // code (1B), result (1B), ID (4B), body (variable), checksum (2B)
+        // code (1B), result (1B), ID (8B), body (variable)
 
-        byte[] output = new byte[reply.getBody().length + 8];
+        byte[] output = new byte[reply.getBody().length + 10];
         output[0] = Reply.code;
         output[1] = reply.getResult();
-        ByteBuffer b = ByteBuffer.allocate(4);
-        byte[] idBytes = b.putInt(0, reply.getId()).array().clone();
-        System.arraycopy(idBytes, 0, output, 2, 4);
-        System.arraycopy(reply.getBody(), 0, output, 6, reply.getBody().length);
+        byte[] idBytes = getBytes(reply.getId());
+        System.arraycopy(idBytes, 0, output, 2, 8);
+        System.arraycopy(reply.getBody(), 0, output, 10, reply.getBody().length);
 
-        Checksum crc32 = new CRC32();
-        crc32.update(output, 0, output.length - 2);
-        short checksum = (short) (crc32.getValue() % 65536);
-        byte[] checksumBytes = ByteBuffer.allocate(2).putShort(checksum).array();
-        System.arraycopy(checksumBytes, 0, output, 6 + reply.getBody().length, 2);
         return output;
     }
 
-    public static Object deserialize(byte[] raw) {
-        if (raw == null) return null;
-        if (raw.length == 0) {
+    public static Object deserialize(byte[] bytes) {
+        if (bytes == null) return null;
+        if (bytes.length == 0) {
             System.out.println("Error: deserialize input empty");
             return null;
         }
-
-        Checksum crc32 = new CRC32();
-        crc32.update(raw, 0, raw.length - 2);
-        short checksum = (short) (crc32.getValue() % 65536);
-        byte[] checksumBytes = ByteBuffer.allocate(2).putShort(checksum).array();
-        if (!Arrays.equals(Arrays.copyOfRange(raw, raw.length - 2, raw.length), checksumBytes)) {
-            System.out.println("Error: checksum invalid");
-            return null;
-        }
-
-        byte[] bytes = Arrays.copyOfRange(raw, 0, raw.length - 2);
 
         byte code = bytes[0];
 
@@ -128,7 +109,7 @@ public class Marshalling {
 
             int offset = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
             int length = ByteBuffer.wrap(bytes, 9 + pathLength, 4).getInt();
-            int id = ByteBuffer.wrap(bytes, 13 + pathLength, 4).getInt();
+            long id = ByteBuffer.wrap(bytes, 13 + pathLength, 8).getLong();
 
             String path = new String(pathBytes);
             return new ReadRequest(path, offset, length, id);
@@ -139,15 +120,15 @@ public class Marshalling {
             int inputLength = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
             byte[] inputBytes = Arrays.copyOfRange(bytes, 9 + pathLength, 9 + pathLength + inputLength);
             int offset = ByteBuffer.wrap(bytes, 9 + pathLength + inputLength, 4).getInt();
-            int id = ByteBuffer.wrap(bytes, 13 + pathLength + inputLength, 4).getInt();
+            long id = ByteBuffer.wrap(bytes, 13 + pathLength + inputLength, 8).getLong();
 
             String path = new String(pathBytes);
             return new WriteRequest(path, offset, inputBytes, id);
 
         } else if (code == Reply.code) {
             byte result = bytes[1];
-            int id = ByteBuffer.wrap(bytes, 2, 4).getInt();
-            byte[] body = Arrays.copyOfRange(bytes, 6, bytes.length);
+            long id = ByteBuffer.wrap(bytes, 2, 8).getLong();
+            byte[] body = Arrays.copyOfRange(bytes, 10, bytes.length);
 
             return new Reply(result, id, body);
         } else {

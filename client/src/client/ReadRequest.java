@@ -1,21 +1,21 @@
 package client;
 
-import java.util.Random;
+import java.security.SecureRandom;
 
 public final class ReadRequest {
     public static final byte code = 1;
     private final String path;
     private final int offset;
     private final int length;
-    private final int id;
+    private final long id;
     public ReadRequest(String path, int offset, int length) {
         this.path = path;
         this.offset = offset;
         this.length = length;
-        this.id = new Random().nextInt();
+        this.id = new SecureRandom().nextLong();
     }
 
-    public ReadRequest(String path, int offset, int length, int id) {
+    public ReadRequest(String path, int offset, int length, long id) {
         this.path = path;
         this.offset = offset;
         this.length = length;
@@ -34,7 +34,7 @@ public final class ReadRequest {
         return offset;
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
