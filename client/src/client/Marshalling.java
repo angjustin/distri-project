@@ -24,7 +24,6 @@ public class Marshalling {
 
         byte[] pathBytes = req.getPath().getBytes();
 
-        ByteBuffer b = ByteBuffer.allocate(4);
         byte[] pathLengthBytes = getBytes(pathBytes.length);
         byte[] offsetBytes = getBytes(req.getOffset());
         byte[] lengthBytes = getBytes(req.getLength());
@@ -35,7 +34,7 @@ public class Marshalling {
                 + offsetBytes.length
                 + lengthBytes.length
                 + idBytes.length
-                + 3];   // code + checksum
+                + 1];
 
         output[0] = ReadRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
@@ -66,7 +65,7 @@ public class Marshalling {
                 + req.getInput().length
                 + offsetBytes.length
                 + idBytes.length
-                + 3];
+                + 1];
 
         output[0] = WriteRequest.code;
         System.arraycopy(pathLengthBytes, 0, output, 1, 4);
