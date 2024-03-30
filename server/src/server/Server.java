@@ -1,10 +1,10 @@
 package server;
 
+import client.PropertiesRequest;
 import client.Marshalling;
 import client.ReadRequest;
 import client.WriteRequest;
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
@@ -29,6 +29,8 @@ public class Server {
                 }
                 else if (request instanceof WriteRequest) {
                     replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
+                } else if (request instanceof PropertiesRequest) {
+                    replyData = Marshalling.serialize(storage.getAttributes((PropertiesRequest) request));
                 } else {
                     System.err.println("Unknown request type.");
                     replyData = Marshalling.serialize(new Reply());

@@ -9,7 +9,7 @@ public class InputManager {
         try {
             return Integer.parseInt(sc.nextLine());
         } catch (Exception e) {
-            System.out.println("Error: please enter an integer");
+            System.out.print("Error, please enter an integer: ");
             return getInt();
         }
     }
@@ -18,14 +18,14 @@ public class InputManager {
         try {
             String s = sc.nextLine();
             if (s.isEmpty()) {
-                System.out.println("Error: empty string, please try again");
+                System.out.print("Error, empty string, please try again: ");
                 return getString();
             }
 
             return s;
 
         } catch (Exception e) {
-            System.out.println("Error: please enter a string");
+            System.out.print("Error, please enter a string: ");
             return getString();
         }
     }

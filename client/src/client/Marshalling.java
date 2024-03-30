@@ -78,6 +78,21 @@ public class Marshalling {
         return output;
     }
 
+    public static byte[] serialize(PropertiesRequest req) {
+        if (req == null) return null;
+        // code (1B), path length (4B), path (variable), id (8B)
+        byte[] pathBytes = req.getPath().getBytes();
+        byte[] pathLengthBytes = getBytes(pathBytes.length);
+        byte[] idBytes = getBytes(req.getId());
+        byte[] output = new byte[pathBytes.length + pathLengthBytes.length + idBytes.length + 1];
+        output[0] = PropertiesRequest.code;
+        System.arraycopy(pathLengthBytes, 0, output, 1, 4);
+        System.arraycopy(pathBytes,0,output,5,pathBytes.length);
+        System.arraycopy(idBytes,0,output,5 + pathBytes.length, 8);
+
+        return output;
+    }
+
     public static byte[] serialize(Reply reply) {
         if (reply == null) return null;
 
@@ -130,6 +145,13 @@ public class Marshalling {
             byte[] body = Arrays.copyOfRange(bytes, 10, bytes.length);
 
             return new Reply(result, id, body);
+        } else if (code == PropertiesRequest.code) {
+            int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
+            byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
+            long id = ByteBuffer.wrap(bytes, 5 + pathLength, 8).getLong();
+
+            String path = new String(pathBytes);
+            return new PropertiesRequest(path, id);
         } else {
             System.out.println("Error: request header invalid");
             return null;
@@ -174,6 +196,16 @@ public class Marshalling {
         WriteRequest writeCopy = (WriteRequest) Marshalling.deserialize(Marshalling.serialize(writeRequest));
         assert writeCopy != null;
         writeCopy.print();
+
+        PropertiesRequest attributeRequest = new PropertiesRequest(filePath);
+        System.out.println("Testing Attribute Request");
+        System.out.println();
+        System.out.println("Original");
+        attributeRequest.print();
+        System.out.println("Reconstructed");
+        PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(attributeRequest));
+        assert attributeCopy != null;
+        attributeCopy.print();
     }
 }
 

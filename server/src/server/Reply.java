@@ -50,10 +50,16 @@ public final class Reply {
     }
 
     public void printClient() {
+        System.out.println();
         System.out.println("Response: " + resultMap.get(result));
         if (result == 0) {  // read request success
             System.out.println("---Read output---");
             System.out.println(new String(body));
+            System.out.println();
+        } else if (result == 3) {
+            System.out.println(new String(body));
+        } else {
+            System.out.println();
         }
     }
 }

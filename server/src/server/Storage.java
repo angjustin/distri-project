@@ -4,6 +4,12 @@ import javax.swing.*;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.text.CharacterIterator;
+import java.text.StringCharacterIterator;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import client.*;
@@ -16,15 +22,11 @@ public class Storage {
         return (byte) i;
     }
     private Path dirPath;
-    // 0 - Read request success
-    // 1 - Write request success
 
-    // 10 - File does not exist
-    // 11 - Offset exceeds file length
-    // 12 - Offset less than zero
     public static final Map<Byte, String> resultMap = Map.ofEntries(
             entry(b(0), "Read request success"),
             entry(b(1), "Write request success"),
+            entry(b(3), "Properties request success"),
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
             entry(b(12), "Offset less than 0"),
@@ -67,7 +69,6 @@ public class Storage {
 
             return new Reply((byte) 0, req.getId(), output);
         } catch (Exception e) {
-            System.out.println("Error: file read error");
             return new Reply((byte) 10, req.getId());
         }
     }
@@ -78,12 +79,12 @@ public class Storage {
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, write.getId());
-        } else if (write.getOffset() < 0) {
-            return new Reply((byte) 12, write.getId());
         }
 
         if (write.getOffset() >= f.length()) {
             return new Reply((byte) 11, write.getId());
+        } else if (write.getOffset() < 0) {
+            return new Reply((byte) 12, write.getId());
         }
 
         try {
@@ -98,8 +99,36 @@ public class Storage {
             Files.write(p, output);
             return new Reply((byte) 1, write.getId());
         } catch (Exception e) {
-            System.out.println("Error: file read error");
             return new Reply((byte) 10, write.getId());
+        }
+    }
+
+    public Reply getAttributes(PropertiesRequest req) {
+        Path p = dirPath.resolve(req.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+
+        try {
+            BasicFileAttributes attr = Files.readAttributes(p, BasicFileAttributes.class);
+            DateTimeFormatter dt = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.systemDefault());
+            Instant creation = Instant.ofEpochMilli(attr.creationTime().toMillis());
+            Instant modify = Instant.ofEpochMilli(attr.lastModifiedTime().toMillis());
+
+
+            String sb = "---" + f.getName() + " properties---\n" +
+                    "Creation time: " + dt.format(creation) + "\n" +
+                    "Last modified time: " + dt.format(modify) + "\n" +
+                    "Size: " + humanReadableByteCountSI(attr.size()) + "\n";
+            byte[] output = sb.getBytes();
+
+            return new Reply((byte) 3, req.getId(), output);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Reply((byte) 10, req.getId());
         }
     }
 
@@ -125,6 +154,18 @@ public class Storage {
         }
     }
 
+    public static String humanReadableByteCountSI(long bytes) {
+        if (-1000 < bytes && bytes < 1000) {
+            return bytes + " B";
+        }
+        CharacterIterator ci = new StringCharacterIterator("kMGTPE");
+        while (bytes <= -999_950 || bytes >= 999_950) {
+            bytes /= 1000;
+            ci.next();
+        }
+        return String.format("%.1f %cB", bytes / 1000.0, ci.current());
+    }
+
     public static void main(String[] args) {
         String filePath = "test.txt";
         Storage store = new Storage();
@@ -140,5 +181,10 @@ public class Storage {
         System.out.println("Reply from read request after writing");
         store.readBytes(r).print();
         System.out.println(filePath + ": " + new String(store.readBytes(r).getBody()));
+        System.out.println();
+        System.out.println("Attribute request");
+        PropertiesRequest a = new PropertiesRequest(filePath);
+        store.getAttributes(a).print();
+        System.out.println(new String(store.getAttributes(a).getBody()));
     }
 }
