@@ -18,7 +18,7 @@ public class InputManager {
         try {
             String s = sc.nextLine();
             if (s.isEmpty()) {
-                System.out.println("Error: empty string");
+                System.out.println("Error: empty string, please try again");
                 return getString();
             }
 

@@ -1,6 +1,9 @@
 package server;
 
+import java.security.SecureRandom;
 import java.util.Arrays;
+
+import static server.Storage.resultMap;
 
 public final class Reply {
     public static final byte code = 0;
@@ -31,6 +34,12 @@ public final class Reply {
         this.body = new byte[0];
     }
 
+    public Reply() {
+        this.result = 20;
+        this.id = new SecureRandom().nextLong();
+        this.body = new byte[0];
+    }
+
 
     public void print() {
         System.out.println("Type: Reply");
@@ -38,5 +47,13 @@ public final class Reply {
         System.out.println("Body: " + Arrays.toString(body));
         System.out.println("ID: " + id);
         System.out.println();
+    }
+
+    public void printClient() {
+        System.out.println("Response: " + resultMap.get(result));
+        if (result == 0) {  // read request success
+            System.out.println("---Read output---");
+            System.out.println(new String(body));
+        }
     }
 }

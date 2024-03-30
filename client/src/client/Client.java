@@ -2,7 +2,10 @@ package client;
 
 import java.io.*;
 import java.net.*;
+import java.util.Arrays;
 import java.util.Scanner;
+
+import server.Reply;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -32,13 +35,12 @@ public class Client {
                     case 1 -> {
                         System.out.println("Service 1: Read content of a file by specifying pathname, offset, and number of bytes.");
                         System.out.print("Enter file pathname: ");
-                        BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
-                        String filePath = userInput.readLine();
+                        String filePath = InputManager.getString();
                         System.out.print("Enter offset (in bytes): ");
-                        int offset = Integer.parseInt(userInput.readLine());
+                        int offset = InputManager.getInt();
                         System.out.print("Enter number of bytes to read: ");
-                        int bytesToRead = Integer.parseInt(userInput.readLine());
 
+                        int bytesToRead = InputManager.getInt();
                         // Create ReadRequest object
                         ReadRequest readRequest = new ReadRequest(filePath, offset, bytesToRead);
                         // Serialize ReadRequest object
@@ -50,18 +52,21 @@ public class Client {
                         byte[] receiveBuffer = new byte[1024];
                         DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                         socket.receive(receivePacket);
-                        String response = new String(receivePacket.getData(),   0, receivePacket.getLength());
-                        System.out.println("Response from server: " + response);
+
+                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+
+                        reply.printClient();
+
                     }
                     case 2 -> {
                         System.out.println("Service 2: Insert content into a file by specifying pathname, offset, and sequence of bytes.");
                         System.out.print("Enter file pathname: ");
-                        BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
-                        String filePath = userInput.readLine();
+                        String filePath = InputManager.getString();
                         System.out.print("Enter offset (in bytes): ");
-                        int offset = Integer.parseInt(userInput.readLine());
+                        int offset = InputManager.getInt();
                         System.out.print("Enter sequence of bytes to write: ");
-                        String stringToWrite = userInput.readLine();
+                        String stringToWrite = InputManager.getString();
                         byte [] bytesToWrite = stringToWrite.getBytes();
 
                         // Create WriteRequest object
@@ -75,8 +80,11 @@ public class Client {
                         byte[] receiveBuffer = new byte[1024];
                         DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                         socket.receive(receivePacket);
-                        String response = new String(receivePacket.getData(),   0, receivePacket.getLength());
-                        System.out.println("Response from server: " + response);
+
+                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+
+                        reply.printClient();
 
                     }
 

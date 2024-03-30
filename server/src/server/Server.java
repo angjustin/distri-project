@@ -4,6 +4,7 @@ import client.Marshalling;
 import client.ReadRequest;
 import client.WriteRequest;
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
@@ -13,6 +14,7 @@ public class Server {
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
             System.out.println("Server is running...");
+            Storage storage = new Storage();
 
             while (true) {
                 byte[] receiveBuffer = new byte[1024];
@@ -21,36 +23,22 @@ public class Server {
                 // Get the length of received data and only deserialize that portion
                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                 Object request = Marshalling.deserialize(receivedData);
-
+                byte[] replyData;
                 if (request instanceof ReadRequest){
-                    handleReadRequest((ReadRequest) request, receivePacket.getAddress(), receivePacket.getPort(), socket);
+                    replyData = Marshalling.serialize(storage.readBytes((ReadRequest) request));
                 }
                 else if (request instanceof WriteRequest) {
-                    handleWriteRequest((WriteRequest) request, receivePacket.getAddress(), receivePacket.getPort(), socket);
+                    replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
                 } else {
                     System.err.println("Unknown request type.");
+                    replyData = Marshalling.serialize(new Reply());
                 }
+
+                DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, receivePacket.getAddress(), receivePacket.getPort());
+                socket.send(sendPacket);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static void handleReadRequest(ReadRequest readRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
-        Storage store = new Storage();
-        Reply response = store.readBytes(readRequest);
-        byte[] sendBuffer = response.getBody();
-        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
-        socket.send(sendPacket);
-    }
-
-    private static void handleWriteRequest(WriteRequest writeRequest, InetAddress clientAddress, int clientPort, DatagramSocket socket) throws IOException {
-         Storage store = new Storage();
-         Reply reply = store.writeBytes(writeRequest);
-         // byte[] sendBuffer = response.getBody();
-         String response = "Write request handled successfully" ;
-         byte [] sendBuffer = response.getBytes();
-         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, clientAddress, clientPort);
-         socket.send(sendPacket);
     }
 }

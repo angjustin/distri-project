@@ -22,12 +22,13 @@ public class Storage {
     // 10 - File does not exist
     // 11 - Offset exceeds file length
     // 12 - Offset less than zero
-    public static Map<Byte, String> resultMap = Map.ofEntries(
+    public static final Map<Byte, String> resultMap = Map.ofEntries(
             entry(b(0), "Read request success"),
             entry(b(1), "Write request success"),
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
-            entry(b(12), "Offset less than 0")
+            entry(b(12), "Offset less than 0"),
+            entry(b(20), "Null reply")
     );
 
     public Storage() {
