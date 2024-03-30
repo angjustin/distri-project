@@ -1,5 +1,6 @@
 package client;
 
+import server.ClientInfo;
 import server.Reply;
 import server.Storage;
 
@@ -91,6 +92,15 @@ public class Marshalling {
         System.arraycopy(idBytes,0,output,5 + pathBytes.length, 8);
 
         return output;
+    }
+
+    public static byte[] serialize(RegisterRequest req) {
+        if (req == null) return null;
+        // TODO: register callback request marshalling
+        // private String filePath;
+        // private int monitorInterval;
+        // private ClientInfo clientInfo;
+        return null;
     }
 
     public static byte[] serialize(Reply reply) {

@@ -1,16 +1,16 @@
 package server;
 
-import client.PropertiesRequest;
-import client.Marshalling;
-import client.ReadRequest;
-import client.WriteRequest;
+import client.*;
 
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Server {
     private static final int PORT = 2222;
+    private static Map<String, ClientInfo> registeredClients = new HashMap<>();
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
             System.out.println("Server is running...");
@@ -28,9 +28,13 @@ public class Server {
                     replyData = Marshalling.serialize(storage.readBytes((ReadRequest) request));
                 }
                 else if (request instanceof WriteRequest) {
+                    // TODO: add informing registered clients upon write
                     replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
                 } else if (request instanceof PropertiesRequest) {
                     replyData = Marshalling.serialize(storage.getAttributes((PropertiesRequest) request));
+                } else if (request instanceof RegisterRequest){
+                    // TODO: handle callback request + reply
+                    continue;
                 } else {
                     System.err.println("Unknown request type.");
                     replyData = Marshalling.serialize(new Reply());

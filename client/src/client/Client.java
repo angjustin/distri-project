@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.util.Arrays;
 
+import server.ClientInfo;
 import server.Reply;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
@@ -88,8 +89,19 @@ public class Client {
 
                     }
 
-                    case 3 ->
+                    case 3 -> {
                         System.out.println("Service 3: Monitor updates made to a file's content for a designated time period.");
+                        System.out.print("Enter file pathname: ");
+                        String filePath = InputManager.getString();
+                        System.out.println("Enter monitor interval (in ms): ");
+                        int interval = InputManager.getInt();
+                        RegisterRequest registerRequest = new RegisterRequest(filePath, interval, new ClientInfo(SERVER_IP, SERVER_PORT));
+                        byte[] sendBuffer = Marshalling.serialize(registerRequest);
+                        // sleep to simulate being blocked from issuing register request
+                        Thread.sleep(interval);
+                        // TODO: handle printing of reply e.g. monitoring in progress...
+                    }
+
                     case 5 -> {
                         System.out.println("Service 5: Get file properties by specifying the file pathname.");
                         System.out.print("Enter file pathname: ");
@@ -120,6 +132,8 @@ public class Client {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }
