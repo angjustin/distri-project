@@ -4,12 +4,6 @@ import java.util.Arrays;
 
 public final class Reply {
     public static final byte code = 0;
-
-    // 0 - Read request success
-    // 1 - Write request success
-
-    // 10 - File does not exist
-    // 11 - Offset exceeds file length
     private final byte result;
     private final byte[] body;
     private final long id;

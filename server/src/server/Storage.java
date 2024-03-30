@@ -4,13 +4,31 @@ import javax.swing.*;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import client.*;
 
 import static java.lang.Math.min;
+import static java.util.Map.entry;
 
 public class Storage {
+    private static byte b(int i) {
+        return (byte) i;
+    }
     private Path dirPath;
+    // 0 - Read request success
+    // 1 - Write request success
+
+    // 10 - File does not exist
+    // 11 - Offset exceeds file length
+    // 12 - Offset less than zero
+    public static Map<Byte, String> resultMap = Map.ofEntries(
+            entry(b(0), "Read request success"),
+            entry(b(1), "Write request success"),
+            entry(b(10), "File does not exist"),
+            entry(b(11), "Offset exceeds file length"),
+            entry(b(12), "Offset less than 0")
+    );
 
     public Storage() {
         dirPath = new JFileChooser().getFileSystemView().getDefaultDirectory().toPath();
@@ -33,11 +51,9 @@ public class Storage {
         }
 
         if (req.getOffset() >= f.length()) {
-            System.out.println("Error: offset exceeds file length");
             return new Reply((byte) 11, req.getId());
         } else if (req.getOffset() < 0) {
-            System.out.println("Error: offset less than 0");
-            return new Reply((byte) 11, req.getId());
+            return new Reply((byte) 12, req.getId());
         }
 
         try {
@@ -61,10 +77,11 @@ public class Storage {
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, write.getId());
+        } else if (write.getOffset() < 0) {
+            return new Reply((byte) 12, write.getId());
         }
 
         if (write.getOffset() >= f.length()) {
-            System.out.println("Error: offset exceeds file length");
             return new Reply((byte) 11, write.getId());
         }
 
