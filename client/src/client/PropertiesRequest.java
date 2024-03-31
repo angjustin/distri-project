@@ -24,7 +24,7 @@ public final class PropertiesRequest {
         return id;
     }
     public void print() {
-        System.out.println("Type: Attribute Request");
+        System.out.println("Type: Properties Request");
         System.out.println("Path: " + path);
         System.out.println("ID: " + id);
         System.out.println();
