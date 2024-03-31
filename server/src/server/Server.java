@@ -1,9 +1,6 @@
 package server;
 
-import client.PropertiesRequest;
-import client.Marshalling;
-import client.ReadRequest;
-import client.WriteRequest;
+import client.*;
 
 import java.io.*;
 import java.net.*;
@@ -24,16 +21,17 @@ public class Server {
                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                 Object request = Marshalling.deserialize(receivedData);
                 byte[] replyData;
-                if (request instanceof ReadRequest){
-                    replyData = Marshalling.serialize(storage.readBytes((ReadRequest) request));
-                }
-                else if (request instanceof WriteRequest) {
-                    replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
-                } else if (request instanceof PropertiesRequest) {
-                    replyData = Marshalling.serialize(storage.getProperties((PropertiesRequest) request));
-                } else {
-                    System.err.println("Unknown request type.");
-                    replyData = Marshalling.serialize(new Reply());
+                switch (request) {
+                    case ReadRequest readRequest -> replyData = Marshalling.serialize(storage.readBytes(readRequest));
+                    case WriteRequest writeRequest ->
+                            replyData = Marshalling.serialize(storage.writeBytes(writeRequest));
+                    case PropertiesRequest propertiesRequest ->
+                            replyData = Marshalling.serialize(storage.getProperties(propertiesRequest));
+                    case FileRequest fileRequest -> replyData = Marshalling.serialize(storage.getFile(fileRequest));
+                    case null, default -> {
+                        System.err.println("Unknown request type.");
+                        replyData = Marshalling.serialize(new Reply());
+                    }
                 }
 
                 DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, receivePacket.getAddress(), receivePacket.getPort());

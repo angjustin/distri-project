@@ -1,15 +1,19 @@
 package client;
 
-import java.nio.file.attribute.FileTime;
+import server.Reply;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 
+import static java.lang.Math.min;
 import static server.Storage.humanReadableByteCountSI;
 
 public class Cache {
-    private HashMap<String, Record> map;
+    private final HashMap<String, Record> records;
+    private final HashMap<String, byte[]> files;
+    private final int freshness;
 
     public final static class Record {
         public static final byte code = 5;
@@ -69,11 +73,64 @@ public class Cache {
         }
     }
 
-    public void addRecord(String path, Record record) {
-        map.put(path, record);
+    public Cache(int freshness) {
+        this.records = new HashMap<>();
+        this.files = new HashMap<>();
+        this.freshness = freshness;
     }
 
-    public Record getRecord(String path) {
-        return map.get(path);
+    public boolean hasRecord(String path) {
+        return this.records.containsKey(path);
+    }
+
+    public boolean isRecordStale(String path) {
+        if (!hasRecord(path)) return true;
+
+        Record record = records.get(path);
+        return System.currentTimeMillis() - record.localValidMillis >= freshness;
+    }
+
+    public boolean isRecordValid(String path, Record serverRecord) {
+        if (!hasRecord(path)) return false;
+        return records.get(path).getServerValidMillis() == serverRecord.getServerValidMillis();
+    }
+
+    public void refreshRecord(String path, Record record) {
+        if (!hasRecord(path)) return;
+        records.put(path, record);
+    }
+
+    public byte[] getBytes(ReadRequest request) {
+        byte[] bytes = this.files.get(request.getPath());
+        if (bytes == null) return null;
+
+        if (request.getOffset() >= bytes.length) {
+            return null;
+        } else if (request.getOffset() < 0) {
+            return null;
+        }
+
+        int length = min(request.getLength(), bytes.length - request.getOffset());
+        byte[] output = new byte[length];
+
+        System.arraycopy(bytes, request.getOffset(), output, 0, length);
+        return output;
+    }
+
+    public void printFile(ReadRequest request) {
+        byte[] bytes = getBytes(request);
+        System.out.println();
+        System.out.println(new String(bytes));
+        System.out.println();
+    }
+
+    public void addFile(String path, Record record, byte[] bytes) {
+        this.records.put(path, record);
+        this.files.put(path, bytes);
+    }
+
+    public void deleteFile(String path) {
+        this.records.remove(path);
+        this.files.remove(path);
     }
 }

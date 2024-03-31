@@ -12,9 +12,12 @@ public class Client {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 2222;
 
+    private static final int FRESHNESS = 5000;
+
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+            Cache cache = new Cache(FRESHNESS);
 
             while (true){
                 // Display menu to choose the program
@@ -39,25 +42,73 @@ public class Client {
                         System.out.print("Enter offset (in bytes): ");
                         int offset = InputManager.getInt();
                         System.out.print("Enter number of bytes to read: ");
-
                         int bytesToRead = InputManager.getInt();
+
                         // Create ReadRequest object
                         ReadRequest readRequest = new ReadRequest(filePath, offset, bytesToRead);
-                        // Serialize ReadRequest object
-                        byte[] sendBuffer = Marshalling.serialize(readRequest);
+
+                        // Check cache for file
+                        if (cache.hasRecord(filePath)) {
+                            if (!cache.isRecordStale(filePath)) {
+                                System.out.println("Cache still fresh, reading from cached file...");
+                                cache.printFile(readRequest);
+                                break;
+                            } else {
+                                System.out.println("Record stale.");
+                            }
+                        } else {
+                            System.out.println("File does not exist in cache.");
+                        }
+
+                        // Create properties request
+                        PropertiesRequest propRequest = new PropertiesRequest(filePath);
+                        byte[] sendBuffer = Marshalling.serialize(propRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
                         socket.send(sendPacket);
-
-                        // Receive from server
                         byte[] receiveBuffer = new byte[1024];
                         DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                         socket.receive(receivePacket);
-
                         byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                         Reply reply = (Reply) Marshalling.deserialize(receivedData);
 
-                        reply.printClient();
+                        if (reply.getResult() != PropertiesRequest.code) {
+                            reply.printClient();
+                            break;
+                        }
 
+                        // Get file properties from server
+                        Cache.Record record = (Cache.Record) Marshalling.deserialize(reply.getBody());
+                        if (cache.isRecordValid(filePath, record)) {
+                            System.out.println("Refreshed cache, reading from cached file...");
+                            cache.refreshRecord(filePath, record);
+                            cache.printFile(readRequest);
+                            break;
+                        }
+
+                        // Create file request
+                        FileRequest fileRequest = new FileRequest(filePath);
+                        sendBuffer = Marshalling.serialize(fileRequest);
+
+                        sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        socket.send(sendPacket);
+
+                        // Receive from server
+                        receiveBuffer = new byte[1024];
+                        receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                        socket.receive(receivePacket);
+                        receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                        reply = (Reply) Marshalling.deserialize(receivedData);
+
+                        if (reply.getResult() != FileRequest.code) {
+                            reply.printClient();
+                            break;
+                        }
+
+                        // Get file from server
+                        byte[] fileBytes = reply.getBody();
+
+                        cache.addFile(filePath, record, fileBytes);
+                        cache.printFile(readRequest);
                     }
                     case 2 -> {
                         System.out.println("Service 2: Insert content into a file by specifying pathname, offset, and sequence of bytes.");
@@ -71,6 +122,10 @@ public class Client {
 
                         // Create WriteRequest object
                         WriteRequest writeRequest = new WriteRequest(filePath, offset, bytesToWrite);
+
+                        // Delete cached file
+                        cache.deleteFile(writeRequest.getPath());
+
                         // Serialize WriteRequest object
                         byte [] sendBuffer = Marshalling.serialize(writeRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);

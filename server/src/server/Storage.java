@@ -7,9 +7,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import client.*;
@@ -27,6 +24,7 @@ public class Storage {
             entry(b(1), "Read request success"),
             entry(b(2), "Write request success"),
             entry(b(4), "Properties request success"),
+            entry(b(6), "File request success"),
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
             entry(b(12), "Offset less than 0"),
@@ -48,7 +46,25 @@ public class Storage {
         }
     }
 
-    public Reply readBytes(ReadRequest req) {
+    public Reply getFile(FileRequest req) {
+        Path p = dirPath.resolve(req.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+
+        try {
+            byte[] output = Files.readAllBytes(p);
+
+            return new Reply(FileRequest.code, req.getId(), output);
+        } catch (Exception e) {
+            return new Reply((byte) 10, req.getId());
+        }
+
+    }
+
+    public Reply readBytes(ReadRequest req) {   // no longer used, files are cached first then read locally
 
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
@@ -71,7 +87,7 @@ public class Storage {
 
             System.arraycopy(bytes, req.getOffset(), output, 0, length);
 
-            return new Reply((byte) 1, req.getId(), output);
+            return new Reply(ReadRequest.code, req.getId(), output);
         } catch (Exception e) {
             return new Reply((byte) 10, req.getId());
         }
@@ -101,7 +117,7 @@ public class Storage {
                     write.getOffset() + write.getInput().length, bytes.length - write.getOffset());
 
             Files.write(p, output);
-            return new Reply((byte) 2, write.getId());
+            return new Reply(WriteRequest.code, write.getId());
         } catch (Exception e) {
             return new Reply((byte) 10, write.getId());
         }
@@ -123,7 +139,7 @@ public class Storage {
                     attr.size());
             byte[] output = Marshalling.serialize(record);
 
-            return new Reply((byte) 4, req.getId(), output);
+            return new Reply(PropertiesRequest.code, req.getId(), output);
 
         } catch (Exception e) {
             e.printStackTrace();
