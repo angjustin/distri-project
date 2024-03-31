@@ -3,10 +3,10 @@ package server;
 import java.net.InetAddress;
 
 public class ClientInfo {
-    String address;
+    InetAddress address;
     int port;
 
-    public ClientInfo(String address, int port) {
+    public ClientInfo(InetAddress address, int port) {
         this.address = address;
         this.port = port;
     }

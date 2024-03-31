@@ -3,6 +3,9 @@ package client;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import server.ClientInfo;
 import server.Reply;
@@ -12,6 +15,7 @@ import server.Reply;
 public class Client {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 2222;
+    private static volatile boolean isMonitoring = false;
 
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket()) {
@@ -93,13 +97,47 @@ public class Client {
                         System.out.println("Service 3: Monitor updates made to a file's content for a designated time period.");
                         System.out.print("Enter file pathname: ");
                         String filePath = InputManager.getString();
-                        System.out.println("Enter monitor interval (in ms): ");
+                        System.out.println("Enter monitor interval (in seconds): ");
                         int interval = InputManager.getInt();
-                        RegisterRequest registerRequest = new RegisterRequest(filePath, interval, new ClientInfo(SERVER_IP, SERVER_PORT));
+                        RegisterRequest registerRequest = new RegisterRequest(filePath, interval, new ClientInfo(serverAddress, SERVER_PORT));
+                        registerRequest.print();
                         byte[] sendBuffer = Marshalling.serialize(registerRequest);
+//                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+//                        socket.send(sendPacket);
                         // sleep to simulate being blocked from issuing register request
-                        Thread.sleep(interval);
                         // TODO: handle printing of reply e.g. monitoring in progress...
+                        startMonitoring();
+                        long startTime = System.currentTimeMillis();
+                        Timer timer = new Timer();
+                        timer.schedule(new TimerTask() {
+                            @Override
+                            public void run() {
+                                stopMonitoring();
+                            }
+                        }, interval * 1000L);
+                        int prev_timeout = socket.getSoTimeout();
+                        System.out.println("Prev timeout: " + prev_timeout);
+                        while (isMonitoring){
+                            byte[] receiveBuffer = new byte[1024];
+                            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                            long timeElapsed = System.currentTimeMillis() - startTime;
+                            System.out.println("time elapsed: " + timeElapsed);
+                            socket.setSoTimeout((int) (interval*1000L - timeElapsed));
+                            try {
+                                socket.receive(receivePacket);
+
+                                // Process received data from the server
+                                // Example: Print received data
+//                                String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
+//                                System.out.println("Received: " + receivedData);
+
+                            } catch (SocketTimeoutException e) {
+                                // Handle timeout (no datagram received within the timeout period)
+                                // Example: Print a message indicating no data received
+                                System.out.println("No further updates to file.");
+                            }
+                        }
+                        socket.setSoTimeout(prev_timeout);
                     }
 
                     case 5 -> {
@@ -132,8 +170,16 @@ public class Client {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
+    }
+
+    private static void stopMonitoring() {
+        isMonitoring = false;
+        System.out.println("Stopped Monitoring");
+    }
+
+    private static void startMonitoring() {
+        isMonitoring = true;
+        System.out.println("Started Monitoring");
     }
 }
