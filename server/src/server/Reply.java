@@ -1,5 +1,10 @@
 package server;
 
+import client.Cache;
+import client.Marshalling;
+import client.PropertiesRequest;
+import client.ReadRequest;
+
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -52,12 +57,14 @@ public final class Reply {
     public void printClient() {
         System.out.println();
         System.out.println("Response: " + resultMap.get(result));
-        if (result == 0) {  // read request success
+        if (result == ReadRequest.code) {  // read request success
             System.out.println("---Read output---");
             System.out.println(new String(body));
             System.out.println();
-        } else if (result == 3) {
-            System.out.println(new String(body));
+        } else if (result == PropertiesRequest.code) {
+            Cache.Record record = (Cache.Record) Marshalling.deserialize(body);
+            record.print();
+            System.out.println();
         } else {
             System.out.println();
         }

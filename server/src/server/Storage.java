@@ -24,9 +24,9 @@ public class Storage {
     private Path dirPath;
 
     public static final Map<Byte, String> resultMap = Map.ofEntries(
-            entry(b(0), "Read request success"),
-            entry(b(1), "Write request success"),
-            entry(b(3), "Properties request success"),
+            entry(b(1), "Read request success"),
+            entry(b(2), "Write request success"),
+            entry(b(4), "Properties request success"),
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
             entry(b(12), "Offset less than 0"),
@@ -34,8 +34,12 @@ public class Storage {
     );
 
     public Storage() {
+        this("CZ4013 Storage");
+    }
+
+    public Storage(String path) {
         dirPath = new JFileChooser().getFileSystemView().getDefaultDirectory().toPath();
-        dirPath = dirPath.resolve("CZ4013 Storage");
+        dirPath = dirPath.resolve(path);
         File dir = dirPath.toFile();
         if (dir.mkdirs()) {
             System.out.println("New directory created at " + dirPath);
@@ -67,7 +71,7 @@ public class Storage {
 
             System.arraycopy(bytes, req.getOffset(), output, 0, length);
 
-            return new Reply((byte) 0, req.getId(), output);
+            return new Reply((byte) 1, req.getId(), output);
         } catch (Exception e) {
             return new Reply((byte) 10, req.getId());
         }
@@ -97,13 +101,13 @@ public class Storage {
                     write.getOffset() + write.getInput().length, bytes.length - write.getOffset());
 
             Files.write(p, output);
-            return new Reply((byte) 1, write.getId());
+            return new Reply((byte) 2, write.getId());
         } catch (Exception e) {
             return new Reply((byte) 10, write.getId());
         }
     }
 
-    public Reply getAttributes(PropertiesRequest req) {
+    public Reply getProperties(PropertiesRequest req) {
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
         if (!f.exists() || !f.isFile()) {
@@ -113,18 +117,13 @@ public class Storage {
 
         try {
             BasicFileAttributes attr = Files.readAttributes(p, BasicFileAttributes.class);
-            DateTimeFormatter dt = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.systemDefault());
-            Instant creation = Instant.ofEpochMilli(attr.creationTime().toMillis());
-            Instant modify = Instant.ofEpochMilli(attr.lastModifiedTime().toMillis());
+            Cache.Record record = new Cache.Record(System.currentTimeMillis(),
+                    attr.lastModifiedTime().toMillis(),
+                    attr.creationTime().toMillis(),
+                    attr.size());
+            byte[] output = Marshalling.serialize(record);
 
-
-            String sb = "---" + f.getName() + " properties---\n" +
-                    "Creation time: " + dt.format(creation) + "\n" +
-                    "Last modified time: " + dt.format(modify) + "\n" +
-                    "Size: " + humanReadableByteCountSI(attr.size()) + "\n";
-            byte[] output = sb.getBytes();
-
-            return new Reply((byte) 3, req.getId(), output);
+            return new Reply((byte) 4, req.getId(), output);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -184,7 +183,6 @@ public class Storage {
         System.out.println();
         System.out.println("Attribute request");
         PropertiesRequest a = new PropertiesRequest(filePath);
-        store.getAttributes(a).print();
-        System.out.println(new String(store.getAttributes(a).getBody()));
+        store.getProperties(a).print();
     }
 }

@@ -30,7 +30,7 @@ public class Server {
                 else if (request instanceof WriteRequest) {
                     replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
                 } else if (request instanceof PropertiesRequest) {
-                    replyData = Marshalling.serialize(storage.getAttributes((PropertiesRequest) request));
+                    replyData = Marshalling.serialize(storage.getProperties((PropertiesRequest) request));
                 } else {
                     System.err.println("Unknown request type.");
                     replyData = Marshalling.serialize(new Reply());

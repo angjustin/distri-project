@@ -2,7 +2,7 @@ package client;
 
 import java.security.SecureRandom;
 
-public class PropertiesRequest {
+public final class PropertiesRequest {
     public static final byte code = 4;
     private final String path;
     private final long id;

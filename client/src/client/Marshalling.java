@@ -93,6 +93,23 @@ public class Marshalling {
         return output;
     }
 
+    public static byte[] serialize(Cache.Record record) {
+        if (record == null) return null;
+        // code (1B), local (8B), server (8B), creation (8B), size (8B)
+        byte[] localBytes = getBytes(record.getLocalValidMillis());
+        byte[] serverBytes = getBytes(record.getServerValidMillis());
+        byte[] creationBytes = getBytes(record.getCreationMillis());
+        byte[] sizeBytes = getBytes(record.getSize());
+
+        byte[] output = new byte[33];
+        output[0] = Cache.Record.code;
+        System.arraycopy(localBytes,0,output,1,8);
+        System.arraycopy(serverBytes,0,output,9,8);
+        System.arraycopy(creationBytes,0,output,17,8);
+        System.arraycopy(sizeBytes,0,output,25,8);
+        return output;
+    }
+
     public static byte[] serialize(Reply reply) {
         if (reply == null) return null;
 
@@ -152,6 +169,12 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
+        } else if (code == Cache.Record.code) {
+            long local = ByteBuffer.wrap(bytes, 1, 8).getLong();
+            long server = ByteBuffer.wrap(bytes, 9, 8).getLong();
+            long creation = ByteBuffer.wrap(bytes, 17, 8).getLong();
+            long size = ByteBuffer.wrap(bytes, 25, 8).getLong();
+            return new Cache.Record(local, server, creation, size);
         } else {
             System.out.println("Error: request header invalid");
             return null;
@@ -197,15 +220,25 @@ public class Marshalling {
         assert writeCopy != null;
         writeCopy.print();
 
-        PropertiesRequest attributeRequest = new PropertiesRequest(filePath);
+        PropertiesRequest propRequest = new PropertiesRequest(filePath);
         System.out.println("Testing Attribute Request");
         System.out.println();
         System.out.println("Original");
-        attributeRequest.print();
+        propRequest.print();
         System.out.println("Reconstructed");
-        PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(attributeRequest));
+        PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(propRequest));
         assert attributeCopy != null;
         attributeCopy.print();
+
+        Cache.Record record = new Cache.Record();
+        System.out.println("Testing Record");
+        System.out.println();
+        System.out.println("Original");
+        record.print();
+        System.out.println("Reconstructed");
+        Cache.Record recordCopy = (Cache.Record) Marshalling.deserialize(Marshalling.serialize(record));
+        assert recordCopy != null;
+        recordCopy.print();
     }
 }
 
