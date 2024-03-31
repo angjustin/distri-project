@@ -31,9 +31,7 @@ public class Server {
                 socket.receive(receivePacket);
                 // Get the length of received data and only deserialize that portion
                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                Object request = Marshalling.deserialize(receivedData);
-                System.out.println("address " + receivePacket.getAddress());
-                System.out.println("port " + receivePacket.getPort());
+                Object request = Marshalling.deserialize(receivedData, receivePacket.getAddress(), receivePacket.getPort());
                 byte[] replyData;
                 if (request instanceof ReadRequest){
                     replyData = Marshalling.serialize(storage.readBytes((ReadRequest) request));

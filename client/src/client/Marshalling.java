@@ -4,6 +4,7 @@ import server.ClientInfo;
 import server.Reply;
 import server.Storage;
 
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -96,9 +97,6 @@ public class Marshalling {
 
     public static byte[] serialize(RegisterRequest req) {
         if (req == null) return null;
-        // private String filePath;
-        // private int monitorInterval;
-        // private ClientInfo clientInfo;
         // TODO: register callback request marshalling
         byte[] pathBytes = req.getFilePath().getBytes();
         byte[] intervalBytes = getBytes(req.getMonitorInterval());
@@ -187,13 +185,34 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
-        } else if (code == RegisterRequest.code){
-            System.out.println("register request");
-            return null;
         } else {
             System.out.println("Error: request header invalid");
             return null;
         }
+    }
+
+    public static Object deserialize(byte[] bytes, InetAddress address, int port) {
+        if (bytes == null) return null;
+        if (bytes.length == 0) {
+            System.out.println("Error: deserialize input empty");
+            return null;
+        }
+
+        byte code = bytes[0];
+        if (code == RegisterRequest.code){
+            System.out.println("register request");
+            int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
+            byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
+            int inputLength = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
+            byte[] inputBytes = Arrays.copyOfRange(bytes, 9 + pathLength, 9 + pathLength + inputLength);
+            int offset = ByteBuffer.wrap(bytes, 9 + pathLength + inputLength, 4).getInt();
+            long id = ByteBuffer.wrap(bytes, 13 + pathLength + inputLength, 8).getLong();
+            return new RegisterRequest();
+        } else {
+            System.out.println("Error: request header invalid");
+            return null;
+        }
+
     }
 
     public static void main(String[] args) {

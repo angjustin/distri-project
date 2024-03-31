@@ -99,8 +99,6 @@ public class Client {
                         String filePath = InputManager.getString();
                         System.out.println("Enter monitor interval (in seconds): ");
                         int interval = InputManager.getInt();
-                        System.out.println("1 " + socket.getLocalAddress() + " port " + socket.getLocalPort());
-                        System.out.println("1 " + socket.getLocalAddress() + " port " + socket.getLocalPort());
                         RegisterRequest registerRequest = new RegisterRequest(filePath, interval);
                         registerRequest.print();
                         byte[] sendBuffer = Marshalling.serialize(registerRequest);
