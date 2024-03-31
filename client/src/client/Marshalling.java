@@ -1,10 +1,8 @@
 package client;
 
-import server.ClientInfo;
 import server.Reply;
 import server.Storage;
 
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -97,31 +95,20 @@ public class Marshalling {
 
     public static byte[] serialize(RegisterRequest req) {
         if (req == null) return null;
-        // TODO: register callback request marshalling
-        byte[] pathBytes = req.getFilePath().getBytes();
+        // code (1B), path length (4B), path (variable), interval (4b), id (8B)
+        byte[] pathBytes = req.getPath().getBytes();
+        byte[] pathLengthBytes = getBytes(pathBytes.length);
         byte[] intervalBytes = getBytes(req.getMonitorInterval());
-//        byte[] addressBytes = req.getClientInfo().getAddressString().getBytes();
-//        byte[] portBytes = getBytes(req.getClientInfo().getPort());
         byte[] idBytes = getBytes(req.getId());
         byte[] output = new byte[pathBytes.length +
+                pathLengthBytes.length +
                 intervalBytes.length +
-//                addressBytes.length +
-//                portBytes.length +
                 idBytes.length + 1];
         output[0] = RegisterRequest.code;
-        int pos = 1;
-        System.arraycopy(pathBytes, 0, output, pos, pathBytes.length);
-        pos += pathBytes.length;
-        System.arraycopy(intervalBytes, 0, output, pos, intervalBytes.length);
-        pos += intervalBytes.length;
-        System.out.println(pos);
-//        System.arraycopy(addressBytes, 0, output, pos, addressBytes.length);
-//        pos += addressBytes.length;
-//        System.out.println(pos);
-//        System.arraycopy(portBytes, 0, output, pos, portBytes.length);
-//        pos += portBytes.length;
-        System.out.println(pos);
-        System.arraycopy(idBytes, 0, output, pos, idBytes.length);
+        System.arraycopy(pathLengthBytes, 0, output, 1, 4);
+        System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
+        System.arraycopy(intervalBytes, 0, output, 5 + pathBytes.length, 4);
+        System.arraycopy(idBytes, 0, output, 9 + pathBytes.length, 8);
 
         return output;
     }
@@ -185,34 +172,17 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
-        } else {
-            System.out.println("Error: request header invalid");
-            return null;
-        }
-    }
-
-    public static Object deserialize(byte[] bytes, InetAddress address, int port) {
-        if (bytes == null) return null;
-        if (bytes.length == 0) {
-            System.out.println("Error: deserialize input empty");
-            return null;
-        }
-
-        byte code = bytes[0];
-        if (code == RegisterRequest.code){
-            System.out.println("register request");
+        } else if (code == RegisterRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
-            int inputLength = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
-            byte[] inputBytes = Arrays.copyOfRange(bytes, 9 + pathLength, 9 + pathLength + inputLength);
-            int offset = ByteBuffer.wrap(bytes, 9 + pathLength + inputLength, 4).getInt();
-            long id = ByteBuffer.wrap(bytes, 13 + pathLength + inputLength, 8).getLong();
-            return new RegisterRequest();
+            int interval = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
+            long id = ByteBuffer.wrap(bytes, 9 + pathLength, 8).getLong();
+            String path = new String(pathBytes);
+            return new RegisterRequest(path, interval, id);
         } else {
             System.out.println("Error: request header invalid");
             return null;
         }
-
     }
 
     public static void main(String[] args) {
@@ -263,6 +233,16 @@ public class Marshalling {
         PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(attributeRequest));
         assert attributeCopy != null;
         attributeCopy.print();
+
+        RegisterRequest registerRequest = new RegisterRequest(filePath, 3);
+        System.out.println("Testing Register Request");
+        System.out.println();
+        System.out.println("Original");
+        registerRequest.print();
+        System.out.println("Reconstructed");
+        RegisterRequest registerCopy = (RegisterRequest) Marshalling.deserialize(Marshalling.serialize(registerRequest));
+        assert registerCopy != null;
+        registerCopy.print();
     }
 }
 

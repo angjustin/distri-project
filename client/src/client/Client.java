@@ -13,7 +13,7 @@ import server.Reply;
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Client {
-    private static final String SERVER_IP = "192.168.88.245";
+    private static final String SERVER_IP = "192.168.88.84";
     private static final int SERVER_PORT = 2222;
     private static volatile boolean isMonitoring = false;
 
@@ -100,10 +100,9 @@ public class Client {
                         System.out.println("Enter monitor interval (in seconds): ");
                         int interval = InputManager.getInt();
                         RegisterRequest registerRequest = new RegisterRequest(filePath, interval);
-                        registerRequest.print();
+
                         byte[] sendBuffer = Marshalling.serialize(registerRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        System.out.println("1 " + sendPacket.getAddress() + sendPacket.getPort());
                         socket.send(sendPacket);
                         // sleep to simulate being blocked from issuing register request
                         // TODO: handle printing of reply e.g. monitoring in progress...
@@ -116,6 +115,7 @@ public class Client {
                                 stopMonitoring();
                             }
                         }, interval * 1000L);
+
                         while (isMonitoring){
                             byte[] receiveBuffer = new byte[1024];
                             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
@@ -130,8 +130,13 @@ public class Client {
 
                                 // Process received data from the server
                                 // Example: Print received data
-//                                String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
-//                                System.out.println("Received: " + receivedData);
+                                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                Reply reply = (Reply) Marshalling.deserialize(receivedData);
+
+                                reply.printClient();
+                                if (reply.getResult() == (byte)10) {
+                                    break;
+                                }
 
                             } catch (SocketTimeoutException e) {
                                 // Handle timeout (no datagram received within the timeout period)

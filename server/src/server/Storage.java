@@ -26,7 +26,9 @@ public class Storage {
     public static final Map<Byte, String> resultMap = Map.ofEntries(
             entry(b(0), "Read request success"),
             entry(b(1), "Write request success"),
+            entry(b(2), "File found, start monitoring"),
             entry(b(3), "Properties request success"),
+            entry(b(5), "File updated"),
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
             entry(b(12), "Offset less than 0"),
@@ -128,6 +130,32 @@ public class Storage {
 
         } catch (Exception e) {
             e.printStackTrace();
+            return new Reply((byte) 10, req.getId());
+        }
+    }
+
+    public Reply registerCheck(RegisterRequest req) {
+        Path p = dirPath.resolve(req.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+        return new Reply((byte) 2, req.getId());
+    }
+
+    public Reply getUpdatedFile(RegisterRequest req){
+        Path p = dirPath.resolve(req.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+
+        try {
+            byte[] output = Files.readAllBytes(p);
+            return new Reply((byte) 5, req.getId(), output);
+        } catch (Exception e) {
             return new Reply((byte) 10, req.getId());
         }
     }
