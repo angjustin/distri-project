@@ -41,6 +41,7 @@ public class Server {
                     for (Map.Entry<ClientInfo, RegisterRequest> entry : registeredClients.entrySet()){
                         if (Objects.equals(((WriteRequest) request).getPath(), entry.getValue().getPath())){
                             Reply notif = storage.getUpdatedFile(entry.getValue());
+                            notif.print();
                             byte[] notifBytes = Marshalling.serialize(notif);
                             InetAddress address = entry.getKey().getAddress();
                             int port = entry.getKey().getPort();
@@ -52,8 +53,11 @@ public class Server {
                     replyData = Marshalling.serialize(storage.getAttributes((PropertiesRequest) request));
                 } else if (request instanceof RegisterRequest){
                     System.out.println("Received register request");
-                    replyData = Marshalling.serialize(storage.registerCheck((RegisterRequest) request));
-                    registerClient((RegisterRequest) request, new ClientInfo(clientAddress, clientPort));
+                    Reply reply = storage.registerCheck((RegisterRequest) request);
+                    replyData = Marshalling.serialize(reply);
+                    if (reply.getResult() == 2) {
+                        registerClient((RegisterRequest) request, new ClientInfo(clientAddress, clientPort));
+                    }
                 } else {
                     System.err.println("Unknown request type.");
                     replyData = Marshalling.serialize(new Reply());
@@ -80,6 +84,10 @@ public class Server {
 
     private static void removeAllExpired(){
         System.out.println("Checking expiry");
+        if (registeredClients.isEmpty()){
+            System.out.println("no one here");
+            return;
+        }
         for (Map.Entry<ClientInfo, RegisterRequest> entry : registeredClients.entrySet()){
             Instant expiry = entry.getKey().getStartTime().plusSeconds(entry.getValue().getMonitorInterval());
             // current time is past the expiry time

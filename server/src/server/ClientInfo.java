@@ -32,6 +32,6 @@ public class ClientInfo {
 
     @Override
     public String toString() {
-        return STR."ClientInfo{address=\{address}, port=\{port}\{'}'}";
+        return "ClientInfo{address=" + address + ", port=" + port;
     }
 }
