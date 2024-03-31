@@ -11,6 +11,14 @@ public class ClientInfo {
         this.port = port;
     }
 
+    public int getPort() {
+        return port;
+    }
+
+    public String getAddressString(){
+        return address.toString();
+    }
+
     @Override
     public String toString() {
         return "ClientInfo{" +

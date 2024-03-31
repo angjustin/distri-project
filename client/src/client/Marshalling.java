@@ -96,11 +96,36 @@ public class Marshalling {
 
     public static byte[] serialize(RegisterRequest req) {
         if (req == null) return null;
-        // TODO: register callback request marshalling
         // private String filePath;
         // private int monitorInterval;
         // private ClientInfo clientInfo;
-        return null;
+        // TODO: register callback request marshalling
+        byte[] pathBytes = req.getFilePath().getBytes();
+        byte[] intervalBytes = getBytes(req.getMonitorInterval());
+//        byte[] addressBytes = req.getClientInfo().getAddressString().getBytes();
+//        byte[] portBytes = getBytes(req.getClientInfo().getPort());
+        byte[] idBytes = getBytes(req.getId());
+        byte[] output = new byte[pathBytes.length +
+                intervalBytes.length +
+//                addressBytes.length +
+//                portBytes.length +
+                idBytes.length + 1];
+        output[0] = RegisterRequest.code;
+        int pos = 1;
+        System.arraycopy(pathBytes, 0, output, pos, pathBytes.length);
+        pos += pathBytes.length;
+        System.arraycopy(intervalBytes, 0, output, pos, intervalBytes.length);
+        pos += intervalBytes.length;
+        System.out.println(pos);
+//        System.arraycopy(addressBytes, 0, output, pos, addressBytes.length);
+//        pos += addressBytes.length;
+//        System.out.println(pos);
+//        System.arraycopy(portBytes, 0, output, pos, portBytes.length);
+//        pos += portBytes.length;
+        System.out.println(pos);
+        System.arraycopy(idBytes, 0, output, pos, idBytes.length);
+
+        return output;
     }
 
     public static byte[] serialize(Reply reply) {
@@ -162,6 +187,9 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
+        } else if (code == RegisterRequest.code){
+            System.out.println("register request");
+            return null;
         } else {
             System.out.println("Error: request header invalid");
             return null;
