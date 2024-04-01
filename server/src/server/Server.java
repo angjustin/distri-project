@@ -36,7 +36,6 @@ public class Server {
                         readRequest.print();
                     }
 
-
                     case WriteRequest writeRequest -> {
                         replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
                         // remove any expired entries
@@ -74,6 +73,12 @@ public class Server {
                     case FileRequest fileRequest -> {
                         replyData = Marshalling.serialize(storage.getFile(fileRequest));
                         fileRequest.print();
+                    }
+
+                    case DeleteRequest deleteRequest -> {
+                        Reply reply = storage.deleteFile((DeleteRequest) request);
+                        replyData = Marshalling.serialize(reply);
+                        deleteRequest.print();
                     }
 
                     case null, default -> {

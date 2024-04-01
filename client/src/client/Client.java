@@ -28,6 +28,7 @@ public class Client {
                 System.out.println("1: Read content of a file by specifying the file pathname, offset, and number of bytes to read.");
                 System.out.println("2: Insert content into a file by specifying the file pathname, offset, and sequence of bytes.");
                 System.out.println("3: Monitor updates made to the content of a specified file for a designated time period.");
+                System.out.println("4: Delete existing file by specifying the file pathname");
                 System.out.println("5: Get file properties by specifying the file pathname.");
                 System.out.println("0: Terminate program.");
 
@@ -199,6 +200,33 @@ public class Client {
                         socket.setSoTimeout(Integer.MAX_VALUE);
                     }
 
+                    case 4 -> {
+                        System.out.println("Service 4:  Delete existing file by specifying the file pathname.");
+                        System.out.print("Enter file pathname: ");
+                        String filePath = InputManager.getString();
+
+                        // Create DeleteRequest object
+                        DeleteRequest req = new DeleteRequest(filePath);
+
+                        // Delete cached file
+                        cache.deleteFile(req.getPath());
+
+                        // Serialize DeleteRequest object
+                        byte[] sendBuffer = Marshalling.serialize(req);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        socket.send(sendPacket);
+
+                        // Receive from server
+                        byte[] receiveBuffer = new byte[1024];
+                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                        socket.receive(receivePacket);
+
+                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                        reply.printClient();
+                    }
+
+
                     case 5 -> {
                         System.out.println("Service 5: Get file properties by specifying the file pathname.");
                         System.out.print("Enter file pathname: ");
@@ -219,6 +247,8 @@ public class Client {
                         reply.printClient();
 
                     }
+
+
                     case 0 -> {
                         System.out.println("Terminating program.");
                         return;

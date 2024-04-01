@@ -25,6 +25,7 @@ public class Storage {
             entry(b(2), "Write request success"),
             entry(b(3), "File found, start monitoring"),
             entry(b(4), "Properties request success"),
+            entry(b(5), "Delete request success"),
             entry(b(6), "File request success"),
             entry(b(7), "File updated"),
             entry(b(10), "File does not exist"),
@@ -209,10 +210,27 @@ public class Storage {
         return String.format("%.1f %cB", bytes / 1000.0, ci.current());
     }
 
+    public Reply deleteFile(DeleteRequest req) {
+        Path p = dirPath.resolve(req.getPath());
+        File f = p.toFile();
+        if (!f.exists() || !f.isFile()) {
+            System.out.println("Error: invalid path " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+        if (f.delete()) {
+            System.out.println("File " +  p + " deleted successfully.");
+            return new Reply(DeleteRequest.code, req.getId());
+        } else {
+            System.out.println("Failed to delete file " + p);
+            return new Reply((byte) 10, req.getId());
+        }
+    }
+
     public static void main(String[] args) {
         String filePath = "test.txt";
         Storage store = new Storage();
         store.populateStorage(filePath, "0123456789");
+        store.populateStorage("testing2.txt", "hello world");
         ReadRequest r = new ReadRequest(filePath, 0, 999);
         System.out.println("Reply from read request");
         store.readBytes(r).print();
