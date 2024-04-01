@@ -11,7 +11,7 @@ import server.Reply;
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Client {
-    private static final String SERVER_IP = "192.168.88.245";
+    private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 2222;
     private static volatile boolean isMonitoring = false;
 
