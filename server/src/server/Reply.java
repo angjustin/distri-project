@@ -1,9 +1,6 @@
 package server;
 
-import client.Cache;
-import client.Marshalling;
-import client.PropertiesRequest;
-import client.ReadRequest;
+import client.*;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -57,7 +54,7 @@ public final class Reply {
     public void printClient() {
         System.out.println();
         System.out.println("Response: " + resultMap.get(result));
-        if (result == ReadRequest.code) {  // read request success
+        if (result == ReadRequest.code | result == 7) {  // read request success or notify of update
             System.out.println("---Read output---");
             System.out.println(new String(body));
             System.out.println();

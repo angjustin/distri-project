@@ -3,14 +3,17 @@ package client;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import server.Reply;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Client {
-    private static final String SERVER_IP = "127.0.0.1";
+    private static final String SERVER_IP = "192.168.88.245";
     private static final int SERVER_PORT = 2222;
+    private static volatile boolean isMonitoring = false;
 
     private static final int FRESHNESS = 5000;
 
@@ -143,8 +146,59 @@ public class Client {
 
                     }
 
-                    case 3 ->
+                    case 3 -> {
                         System.out.println("Service 3: Monitor updates made to a file's content for a designated time period.");
+                        System.out.print("Enter file pathname: ");
+                        String filePath = InputManager.getString();
+                        System.out.println("Enter monitor interval (in seconds): ");
+                        int interval = InputManager.getInt();
+                        RegisterRequest registerRequest = new RegisterRequest(filePath, interval);
+
+                        byte[] sendBuffer = Marshalling.serialize(registerRequest);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        socket.send(sendPacket);
+                        // sleep to simulate being blocked from issuing register request
+                        startMonitoring();
+                        long startTime = System.currentTimeMillis();
+                        Timer timer = new Timer();
+                        timer.schedule(new TimerTask() {
+                            @Override
+                            public void run() {
+                                stopMonitoring();
+                            }
+                        }, interval * 1000L);
+
+                        while (isMonitoring){
+                            byte[] receiveBuffer = new byte[1024];
+                            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                            long timeElapsed = System.currentTimeMillis() - startTime;
+                            if (timeElapsed > (interval * 1000L)) {
+                                break;
+                            } else {
+                                socket.setSoTimeout((int) (interval * 1000L - timeElapsed));
+                            }
+                            try {
+                                socket.receive(receivePacket);
+
+                                // Process received data from the server
+                                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                Reply reply = (Reply) Marshalling.deserialize(receivedData);
+
+                                reply.printClient();
+                                // if file does not exist
+                                if (reply.getResult() == (byte)10) {
+                                    break;
+                                }
+
+                            } catch (SocketTimeoutException e) {
+                                // Handle timeout (no datagram received within the timeout period)
+                                // Example: Print a message indicating no data received
+                                System.out.println("No further updates to file.");
+                            }
+                        }
+                        socket.setSoTimeout(Integer.MAX_VALUE);
+                    }
+
                     case 5 -> {
                         System.out.println("Service 5: Get file properties by specifying the file pathname.");
                         System.out.print("Enter file pathname: ");
@@ -176,5 +230,13 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void stopMonitoring() {
+        isMonitoring = false;
+    }
+
+    private static void startMonitoring() {
+        isMonitoring = true;
     }
 }
