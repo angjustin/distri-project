@@ -93,6 +93,26 @@ public class Marshalling {
         return output;
     }
 
+    public static byte[] serialize(RegisterRequest req) {
+        if (req == null) return null;
+        // code (1B), path length (4B), path (variable), interval (4b), id (8B)
+        byte[] pathBytes = req.getPath().getBytes();
+        byte[] pathLengthBytes = getBytes(pathBytes.length);
+        byte[] intervalBytes = getBytes(req.getMonitorInterval());
+        byte[] idBytes = getBytes(req.getId());
+        byte[] output = new byte[pathBytes.length +
+                pathLengthBytes.length +
+                intervalBytes.length +
+                idBytes.length + 1];
+        output[0] = RegisterRequest.code;
+        System.arraycopy(pathLengthBytes, 0, output, 1, 4);
+        System.arraycopy(pathBytes, 0, output, 5, pathBytes.length);
+        System.arraycopy(intervalBytes, 0, output, 5 + pathBytes.length, 4);
+        System.arraycopy(idBytes, 0, output, 9 + pathBytes.length, 8);
+
+        return output;
+    }
+
     public static byte[] serialize(FileRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), id (8B)
@@ -184,6 +204,13 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
+        } else if (code == RegisterRequest.code) {
+            int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
+            byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
+            int interval = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
+            long id = ByteBuffer.wrap(bytes, 9 + pathLength, 8).getLong();
+            String path = new String(pathBytes);
+            return new RegisterRequest(path, interval, id);
         } else if (code == Cache.Record.code) {
             long local = ByteBuffer.wrap(bytes, 1, 8).getLong();
             long server = ByteBuffer.wrap(bytes, 9, 8).getLong();
@@ -242,15 +269,25 @@ public class Marshalling {
         assert writeCopy != null;
         writeCopy.print();
 
-        PropertiesRequest propRequest = new PropertiesRequest(filePath);
+        PropertiesRequest attributeRequest = new PropertiesRequest(filePath);
         System.out.println("Testing Attribute Request");
         System.out.println();
         System.out.println("Original");
-        propRequest.print();
+        attributeRequest.print();
         System.out.println("Reconstructed");
-        PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(propRequest));
+        PropertiesRequest attributeCopy = (PropertiesRequest) Marshalling.deserialize(Marshalling.serialize(attributeRequest));
         assert attributeCopy != null;
         attributeCopy.print();
+
+        RegisterRequest registerRequest = new RegisterRequest(filePath, 3);
+        System.out.println("Testing Register Request");
+        System.out.println();
+        System.out.println("Original");
+        registerRequest.print();
+        System.out.println("Reconstructed");
+        RegisterRequest registerCopy = (RegisterRequest) Marshalling.deserialize(Marshalling.serialize(registerRequest));
+        assert registerCopy != null;
+        registerCopy.print();
 
         Cache.Record record = new Cache.Record();
         System.out.println("Testing Record");
