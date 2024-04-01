@@ -218,7 +218,8 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
-        } else if (code == DeleteRequest.code) {
+        }
+        else if (code == DeleteRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
             long id = ByteBuffer.wrap(bytes, 5 + pathLength, 8).getLong();

@@ -4,7 +4,7 @@ import java.security.SecureRandom;
 
 public class DeleteRequest {
 
-    public static final byte code = 5;
+    public static final byte code = 8;
     private final String path;
 
     private final long id;

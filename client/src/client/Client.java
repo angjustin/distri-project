@@ -69,12 +69,12 @@ public class Client {
                         byte[] sendBuffer = Marshalling.serialize(propRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
                         socket.send(sendPacket);
+
                         byte[] receiveBuffer = new byte[1024];
                         DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                         socket.receive(receivePacket);
                         byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                         Reply reply = (Reply) Marshalling.deserialize(receivedData);
-
                         if (reply.getResult() != PropertiesRequest.code) {
                             reply.printClient();
                             break;
