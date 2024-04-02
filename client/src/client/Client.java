@@ -78,8 +78,8 @@ public class Client {
                         // Initialise other variables
                         Reply reply = null;
                         byte[] receiveBuffer = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);;
-                        byte [] receivedData = null;
+                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                        byte [] receivedData;
                         // / Retransmit request messages as a fault tolerance measure
                         while (!responseReceived && retries < MAX_RETRIES){
                             try{
@@ -88,7 +88,7 @@ public class Client {
                                 // Receive from server
                                 socket.receive(receivePacket);
                                 responseReceived = true;
-                                receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());;
+                                receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                                 reply = (Reply) Marshalling.deserialize(receivedData);
                             }
                             catch (SocketTimeoutException e){
