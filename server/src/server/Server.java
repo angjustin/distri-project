@@ -5,14 +5,17 @@ import client.*;
 import java.io.*;
 import java.net.*;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class Server {
     private static final int PORT = 2222;
     private static Map<ClientInfo, RegisterRequest> registeredClients = new HashMap<>();
+
+    private static Map<Long, Reply> processedRequests = new HashMap<>();
+
+    // At-most-once semantics: Duplicate filtering and retransmission of reply
+    private static final Boolean isAtMostOnce = false;
+
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
             System.out.println("Server is running...");
@@ -28,15 +31,37 @@ public class Server {
                 int clientPort = receivePacket.getPort();
                 Object request = Marshalling.deserialize(receivedData);
                 byte[] replyData;
-
                 System.out.println("Received request...");
+
+                Long requestId = null;
+
                 switch (request) {
                     case ReadRequest readRequest -> {
-                        replyData = Marshalling.serialize(storage.readBytes(readRequest));
-                        readRequest.print();
+                        requestId = readRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
+                        else{
+                            replyData = Marshalling.serialize(storage.readBytes(readRequest));
+                            readRequest.print();
+                        }
                     }
 
                     case WriteRequest writeRequest -> {
+                        requestId = writeRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
                         replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
                         // remove any expired entries
                         removeAllExpired();
@@ -57,11 +82,31 @@ public class Server {
                     }
 
                     case PropertiesRequest propertiesRequest -> {
+                        requestId = propertiesRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            System.out.println("Sending reply...");
+                            reply.print();
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
                         replyData = Marshalling.serialize(storage.getProperties(propertiesRequest));
                         propertiesRequest.print();
                     }
 
                     case RegisterRequest registerRequest -> {
+                        requestId = registerRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
                         Reply reply = storage.registerCheck((RegisterRequest) request);
                         replyData = Marshalling.serialize(reply);
                         if (reply.getResult() == RegisterRequest.code) {
@@ -71,11 +116,33 @@ public class Server {
                     }
 
                     case FileRequest fileRequest -> {
+                        requestId = fileRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            System.out.println("Sending reply...");
+                            reply.print();
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
                         replyData = Marshalling.serialize(storage.getFile(fileRequest));
                         fileRequest.print();
                     }
 
                     case DeleteRequest deleteRequest -> {
+                        requestId = deleteRequest.getId();
+                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                            // Retransmit reply
+                            Reply reply = processedRequests.get(requestId);
+                            System.out.println("Sending reply...");
+                            reply.print();
+                            replyData = Marshalling.serialize(reply);
+                            DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                            socket.send(sendPacket);
+                            continue;
+                        }
                         Reply reply = storage.deleteFile((DeleteRequest) request);
                         replyData = Marshalling.serialize(reply);
                         deleteRequest.print();
@@ -87,12 +154,22 @@ public class Server {
                     }
                 }
 
-                System.out.println("Sending reply...");
                 Reply reply = (Reply) Marshalling.deserialize(replyData);
-                reply.print();
 
-                DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
-                socket.send(sendPacket);
+
+                // Mark request as processed
+                // EXPERIMENT: Simulate lost of packet from server to client and do not send to client for first request
+                if (!isDuplicateRequest(requestId)){
+                    markRequestAsProcessed(requestId, reply);
+                }
+                // Send duplicate requests to client
+                else {
+                    System.out.println("Sending reply 2");
+                    reply.print();
+                    DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
+                    socket.send(sendPacket);
+                }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -121,6 +198,20 @@ public class Server {
             if (Instant.now().compareTo(expiry) > 0){
                 deregisterClient(entry.getKey());
             }
+        }
+    }
+
+    private static boolean isDuplicateRequest(Long requestId){
+        return processedRequests.containsKey(requestId);
+    }
+
+    private static void markRequestAsProcessed(Long requestId, Reply reply){
+        if (!processedRequests.containsKey(requestId)){
+            processedRequests.put(requestId, reply);
+            System.out.println("Mark request as processed");
+        }
+        else{
+            System.out.println("Request: " + requestId + " already processed.");
         }
     }
 

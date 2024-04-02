@@ -21,6 +21,8 @@ public class Client {
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
             Cache cache = new Cache(FRESHNESS);
+            int MAX_RETRIES = 5;
+            int TIMEOUT_MILLISECONDS = 2500;
 
             while (true){
                 // Display menu to choose the program
@@ -64,22 +66,43 @@ public class Client {
                             System.out.println("File does not exist in cache.");
                         }
 
+                        // Initialise variables to check if need to retransmit request messages
+                        boolean responseReceived = false;
+                        int retries = 0;
+
                         // Create properties request
                         PropertiesRequest propRequest = new PropertiesRequest(filePath);
+                        // Serialise properties request
                         byte[] sendBuffer = Marshalling.serialize(propRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
-
+                        // Initialise other variables
+                        Reply reply = null;
                         byte[] receiveBuffer = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                        socket.receive(receivePacket);
-                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);;
+                        byte [] receivedData = null;
+                        // / Retransmit request messages as a fault tolerance measure
+                        while (!responseReceived && retries < MAX_RETRIES){
+                            try{
+                                socket.send(sendPacket);
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
+                                // Receive from server
+                                socket.receive(receivePacket);
+                                responseReceived = true;
+                                receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());;
+                                reply = (Reply) Marshalling.deserialize(receivedData);
+                            }
+                            catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
+                            }
+                        }
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
                         if (reply.getResult() != PropertiesRequest.code) {
                             reply.printClient();
                             break;
                         }
-
                         // Get file properties from server
                         Cache.Record record = (Cache.Record) Marshalling.deserialize(reply.getBody());
                         if (cache.isRecordValid(filePath, record)) {
@@ -89,28 +112,45 @@ public class Client {
                             break;
                         }
 
+                        // Re-initialise variables to check if need to retransmit request messages
+                        responseReceived = false;
+                        retries = 0;
+
                         // Create file request
                         FileRequest fileRequest = new FileRequest(filePath);
+                        // Serialise file request
                         sendBuffer = Marshalling.serialize(fileRequest);
-
                         sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
 
-                        // Receive from server
-                        receiveBuffer = new byte[1024];
-                        receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                        socket.receive(receivePacket);
-                        receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                        reply = (Reply) Marshalling.deserialize(receivedData);
-
-                        if (reply.getResult() != FileRequest.code) {
-                            reply.printClient();
-                            break;
+                        // Retransmit request messages as a fault tolerance measure
+                        while (!responseReceived  && retries < MAX_RETRIES){
+                            try{
+                                socket.send(sendPacket);
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
+                                // Receive from server
+                                receiveBuffer = new byte[1024];
+                                receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                socket.receive(receivePacket);
+                                // Indicate that response is received
+                                responseReceived = true;
+                                receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                reply = (Reply) Marshalling.deserialize(receivedData);
+                                if (reply.getResult() != FileRequest.code) {
+//                                  // reply.printClient();
+                                    responseReceived = false;
+                                    retries++;
+                                }
+                            }
+                            catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
+                            }
                         }
-
-                        // Get file from server
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
+                        // Add to cache
                         byte[] fileBytes = reply.getBody();
-
                         cache.addFile(filePath, record, fileBytes);
                         cache.printFile(readRequest);
                     }
@@ -130,21 +170,38 @@ public class Client {
                         // Delete cached file
                         cache.deleteFile(writeRequest.getPath());
 
-                        // Serialize WriteRequest object
+                        // Initialise variables to check if need to retransmit request messages
+                        boolean responseReceived = false;
+                        int retries = 0;
                         byte [] sendBuffer = Marshalling.serialize(writeRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
 
-                        // Receive from server
-                        byte[] receiveBuffer = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                        socket.receive(receivePacket);
+                        // Retransmit request messages as a fault tolerance measure
+                        while (!responseReceived  && retries < MAX_RETRIES){
+                            try{
+                                // Serialize WriteRequest object
+                                socket.send(sendPacket);
 
-                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                                // Set a timeout for receiving response
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
 
-                        reply.printClient();
-
+                                // Receive from server
+                                byte[] receiveBuffer = new byte[1024];
+                                DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                socket.receive(receivePacket);
+                                responseReceived = true;
+                                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                                reply.printClient();
+                            }
+                            catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
+                            }
+                        }
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
                     }
 
                     case 3 -> {
@@ -211,19 +268,36 @@ public class Client {
                         // Delete cached file
                         cache.deleteFile(req.getPath());
 
+                        // Initialise variables to check if need to retransmit request messages
+                        boolean responseReceived = false;
+                        int retries = 0;
+
                         // Serialize DeleteRequest object
                         byte[] sendBuffer = Marshalling.serialize(req);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
 
-                        // Receive from server
-                        byte[] receiveBuffer = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                        socket.receive(receivePacket);
-
-                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
-                        reply.printClient();
+                        while (!responseReceived && retries < MAX_RETRIES){
+                            try{
+                                socket.send(sendPacket);
+                                // Set a timeout for receiving response
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
+                                // Receive from server
+                                byte[] receiveBuffer = new byte[1024];
+                                DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                socket.receive(receivePacket);
+                                responseReceived = true;
+                                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                                reply.printClient();
+                            }
+                             catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
+                            }
+                        }
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
                     }
 
 
@@ -233,21 +307,37 @@ public class Client {
                         String filePath = InputManager.getString();
 
                         PropertiesRequest req = new PropertiesRequest(filePath);
+
+                        // Initialise variables to check if need to retransmit request messages
+                        boolean responseReceived = false;
+                        int retries = 0;
                         byte[] sendBuffer = Marshalling.serialize(req);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
 
-                        byte[] receiveBuffer = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                        socket.receive(receivePacket);
+                        while (!responseReceived && retries < MAX_RETRIES){
+                            try{
+                                socket.send(sendPacket);
+                                // Set a timeout for receiving response
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
 
-                        byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
-                        Reply reply = (Reply) Marshalling.deserialize(receivedData);
+                                byte[] receiveBuffer = new byte[1024];
+                                DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                socket.receive(receivePacket);
+                                responseReceived = true;
+                                byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                Reply reply = (Reply) Marshalling.deserialize(receivedData);
 
-                        reply.printClient();
-
+                                reply.printClient();
+                            }
+                            catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
+                            }
+                        }
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
                     }
-
 
                     case 0 -> {
                         System.out.println("Terminating program.");
