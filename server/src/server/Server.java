@@ -9,7 +9,7 @@ import java.util.*;
 
 public class Server {
     private static final int PORT = 2222;
-    private static Map<ClientInfo, RegisterRequest> registeredClients = new HashMap<>();
+    private static Map<String, ClientInfo> registeredClients = new HashMap<>();
 
     private static Map<Long, Reply> processedRequests = new HashMap<>();
 
@@ -67,13 +67,13 @@ public class Server {
                         removeAllExpired();
                         // notify any subscribed clients
                         System.out.println("Notifying");
-                        for (Map.Entry<ClientInfo, RegisterRequest> entry : registeredClients.entrySet()){
-                            if (Objects.equals(((WriteRequest) request).getPath(), entry.getValue().getPath())){
-                                Reply notif = storage.getUpdatedFile(entry.getValue());
+                        for (Map.Entry<String, ClientInfo> entry : registeredClients.entrySet()){
+                            if (Objects.equals(((WriteRequest) request).getPath(), entry.getValue().getRegisterRequest().getPath())){
+                                Reply notif = storage.getUpdatedFile(entry.getValue().getRegisterRequest());
                                 notif.print();
                                 byte[] notifBytes = Marshalling.serialize(notif);
-                                InetAddress address = entry.getKey().getAddress();
-                                int port = entry.getKey().getPort();
+                                InetAddress address = entry.getValue().getAddress();
+                                int port = entry.getValue().getPort();
                                 DatagramPacket sendPacket = new DatagramPacket(notifBytes, notifBytes.length, address, port);
                                 socket.send(sendPacket);
                             }
@@ -110,7 +110,8 @@ public class Server {
                         Reply reply = storage.registerCheck((RegisterRequest) request);
                         replyData = Marshalling.serialize(reply);
                         if (reply.getResult() == RegisterRequest.code) {
-                            registerClient((RegisterRequest) request, new ClientInfo(clientAddress, clientPort));
+                            ClientInfo clientInfo = new ClientInfo(clientAddress, clientPort, registerRequest);
+                            registerClient(clientInfo.printAddressPort(), clientInfo );
                         }
                         registerRequest.print();
                     }
@@ -175,14 +176,19 @@ public class Server {
             e.printStackTrace();
         }
     }
-    private static void registerClient(RegisterRequest req, ClientInfo info){
+    private static void registerClient(String client, ClientInfo info){
         removeAllExpired();
-        registeredClients.put(info, req);
-        System.out.println("Added: " + info);
+        // check if client is already registered
+        if (registeredClients.containsKey(client)) {
+            System.out.println("Client is already registered");
+            return;
+        }
+        registeredClients.put(client, info);
+        System.out.println("Added: " + client);
         System.out.println("All registered: " + registeredClients);
     }
 
-    private static void deregisterClient(ClientInfo info){
+    private static void deregisterClient(String info){
         registeredClients.remove(info);
         System.out.println("Removed: " + info);
     }
@@ -192,8 +198,8 @@ public class Server {
         if (registeredClients.isEmpty()){
             return;
         }
-        for (Map.Entry<ClientInfo, RegisterRequest> entry : registeredClients.entrySet()){
-            Instant expiry = entry.getKey().getStartTime().plusSeconds(entry.getValue().getMonitorInterval());
+        for (Map.Entry<String, ClientInfo> entry : registeredClients.entrySet()){
+            Instant expiry = entry.getValue().getStartTime().plusSeconds(entry.getValue().getRegisterRequest().getMonitorInterval());
             // current time is past the expiry time
             if (Instant.now().compareTo(expiry) > 0){
                 deregisterClient(entry.getKey());

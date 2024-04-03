@@ -212,49 +212,86 @@ public class Client {
                         int interval = InputManager.getInt();
                         RegisterRequest registerRequest = new RegisterRequest(filePath, interval);
 
+                        // Initialise variables to check if need to retransmit request messages
+                        boolean responseReceived = false;
+                        int retries = 0;
+
                         byte[] sendBuffer = Marshalling.serialize(registerRequest);
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
-                        socket.send(sendPacket);
-                        // sleep to simulate being blocked from issuing register request
-                        startMonitoring();
-                        long startTime = System.currentTimeMillis();
-                        Timer timer = new Timer();
-                        timer.schedule(new TimerTask() {
-                            @Override
-                            public void run() {
-                                stopMonitoring();
-                            }
-                        }, interval * 1000L);
 
-                        while (isMonitoring){
-                            byte[] receiveBuffer = new byte[1024];
-                            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                            long timeElapsed = System.currentTimeMillis() - startTime;
-                            if (timeElapsed > (interval * 1000L)) {
-                                break;
-                            } else {
-                                socket.setSoTimeout((int) (interval * 1000L - timeElapsed));
-                            }
-                            try {
+                        // Retransmit request messages as a fault tolerance measure
+                        while (!responseReceived  && retries < MAX_RETRIES){
+                            try{
+                                // Serialize WriteRequest object
+                                socket.send(sendPacket);
+
+                                // Set a timeout for receiving response
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
+
+                                // Receive from server
+                                byte[] receiveBuffer = new byte[1024];
+                                DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                                 socket.receive(receivePacket);
-
-                                // Process received data from the server
+                                responseReceived = true;
                                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
                                 Reply reply = (Reply) Marshalling.deserialize(receivedData);
-
                                 reply.printClient();
-                                // if file does not exist
+
                                 if (reply.getResult() == (byte)10) {
                                     break;
                                 }
 
-                            } catch (SocketTimeoutException e) {
-                                // Handle timeout (no datagram received within the timeout period)
-                                // Example: Print a message indicating no data received
-                                System.out.println("No further updates to file.");
+                                // sleep to simulate being blocked from issuing register request
+                                startMonitoring();
+                                long startTime = System.currentTimeMillis();
+                                Timer timer = new Timer();
+                                timer.schedule(new TimerTask() {
+                                    @Override
+                                    public void run() {
+                                        stopMonitoring();
+                                    }
+                                }, interval * 1000L);
+
+                                while (isMonitoring){
+                                    receiveBuffer = new byte[1024];
+                                    receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                    long timeElapsed = System.currentTimeMillis() - startTime;
+                                    if (timeElapsed > (interval * 1000L)) {
+                                        break;
+                                    } else {
+                                        socket.setSoTimeout((int) (interval * 1000L - timeElapsed));
+                                    }
+                                    try {
+                                        socket.receive(receivePacket);
+
+                                        // Process received data from the server
+                                        receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                                        reply = (Reply) Marshalling.deserialize(receivedData);
+
+                                        reply.printClient();
+                                        // if file does not exist
+                                        if (reply.getResult() == (byte)10) {
+                                            break;
+                                        }
+
+                                    } catch (SocketTimeoutException e) {
+                                        // Handle timeout (no datagram received within the timeout period)
+                                        // Example: Print a message indicating no data received
+                                        System.out.println("No further updates to file.");
+                                    }
+                                }
+                                socket.setSoTimeout(Integer.MAX_VALUE);
+
+
+                            }
+                            catch (SocketTimeoutException e){
+                                retries++;
+                                System.out.printf("Timeout occurred. Retrying request %d out of %d\n", retries, MAX_RETRIES);
                             }
                         }
-                        socket.setSoTimeout(Integer.MAX_VALUE);
+                        if (!responseReceived) {
+                            System.out.println("Maximum retries reached. Unable to complete request.");
+                        }
                     }
 
                     case 4 -> {
