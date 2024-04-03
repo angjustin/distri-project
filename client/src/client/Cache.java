@@ -108,20 +108,20 @@ public class Cache {
     public byte[] getBytes(ReadRequest request) {
         byte[] bytes = this.files.get(request.getPath());
         if (bytes == null) {
-            System.out.println("Error: File does not exist");
+            System.out.println("Error, File does not exist");
             return null;
         }
 
         if (request.getOffset() >= bytes.length) {
-            System.out.println("Error: Offset exceeds file length");
+            System.out.println("Error, Offset exceeds file length");
             return null;
         } else if (request.getOffset() < 0) {
-            System.out.println("Error: Offset less than 0");
+            System.out.println("Error, Offset less than 0");
             return null;
         }
 
         if (request.getLength() < 0) {
-            System.out.println("Error: Number of bytes to read less than 0");
+            System.out.println("Error, Number of bytes to read less than 0");
             return null;
         }
 

@@ -7,7 +7,12 @@ public class InputManager {
 
     public static int getInt() {
         try {
-            return Integer.parseInt(sc.nextLine());
+            int i = Integer.parseInt(sc.nextLine());
+            if (i < 0) {
+                System.out.println("Error, please enter a non-negative integer");
+                return getInt();
+            }
+            return i;
         } catch (Exception e) {
             System.out.print("Error, please enter an integer: ");
             return getInt();
