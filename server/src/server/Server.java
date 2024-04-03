@@ -172,12 +172,10 @@ public class Server {
 
                 // Mark request as processed
                 // EXPERIMENT: Simulate lost of packet from server to client and do not send to client for first request
-                if (isExperimentMode && !isDuplicateRequest(requestId)){
-                    markRequestAsProcessed(requestId, reply);
-                }
+                markRequestAsProcessed(requestId, reply);
+
                 // Send duplicate requests to client
-                else {
-                    markRequestAsProcessed(requestId, reply);
+                if (!isExperimentMode || isDuplicateRequest(requestId)) {
                     reply.print();
                     DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
                     socket.send(sendPacket);
