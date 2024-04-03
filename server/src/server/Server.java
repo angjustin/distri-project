@@ -9,8 +9,9 @@ import java.util.*;
 
 public class Server {
     private static final int PORT = 2222;
+    // hashmap storing clients registered for file updates
     private static Map<String, ClientInfo> registeredClients = new HashMap<>();
-
+    // hashmap storing processed requests
     private static Map<Long, Reply> processedRequests = new HashMap<>();
 
     // At-most-once semantics: Duplicate filtering and retransmission of reply
@@ -27,8 +28,10 @@ public class Server {
                 socket.receive(receivePacket);
                 // Get the length of received data and only deserialize that portion
                 byte[] receivedData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
+                // Get client information (address and port)
                 InetAddress clientAddress = receivePacket.getAddress();
                 int clientPort = receivePacket.getPort();
+                // Deserialise reply to get request type
                 Object request = Marshalling.deserialize(receivedData);
                 byte[] replyData;
                 System.out.println("Received request...");
@@ -177,6 +180,7 @@ public class Server {
         }
     }
     private static void registerClient(String client, ClientInfo info){
+        // remove any expired subscriptions
         removeAllExpired();
         // check if client is already registered
         if (registeredClients.containsKey(client)) {
@@ -199,6 +203,7 @@ public class Server {
             return;
         }
         for (Map.Entry<String, ClientInfo> entry : registeredClients.entrySet()){
+            // calculate expiry time
             Instant expiry = entry.getValue().getStartTime().plusSeconds(entry.getValue().getRegisterRequest().getMonitorInterval());
             // current time is past the expiry time
             if (Instant.now().compareTo(expiry) > 0){

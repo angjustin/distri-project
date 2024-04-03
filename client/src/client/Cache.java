@@ -15,6 +15,7 @@ public class Cache {
     private final HashMap<String, byte[]> files;
     private final int freshness;
 
+    // Cache record
     public final static class Record {
         public static final byte code = 5;
         private final long localValidMillis;
@@ -37,6 +38,7 @@ public class Cache {
         }
 
         public void print() {
+            // print cache record
             DateTimeFormatter dt = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.systemDefault());
             Instant creation = Instant.ofEpochMilli(this.creationMillis);
             Instant modify = Instant.ofEpochMilli(this.serverValidMillis);
@@ -84,6 +86,7 @@ public class Cache {
     }
 
     public boolean isRecordStale(String path) {
+        // check if cache entry is still fresh
         if (!hasRecord(path)) return true;
 
         Record record = records.get(path);

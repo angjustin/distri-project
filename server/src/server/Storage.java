@@ -20,6 +20,7 @@ public class Storage {
     }
     private Path dirPath;
 
+    // hashmap of reply codes
     public static final Map<Byte, String> resultMap = Map.ofEntries(
             entry(b(1), "Read request success"),
             entry(b(2), "Write request success"),
@@ -52,11 +53,14 @@ public class Storage {
     public Reply getFile(FileRequest req) {
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check if file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
 
+        // read entire file
         try {
             byte[] output = Files.readAllBytes(p);
 
@@ -71,17 +75,21 @@ public class Storage {
 
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check if file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
 
+        // ensure that offset is valid
         if (req.getOffset() >= f.length()) {
             return new Reply((byte) 11, req.getId());
         } else if (req.getOffset() < 0) {
             return new Reply((byte) 12, req.getId());
         }
 
+        // read specified number of bytes
         try {
             byte[] bytes = Files.readAllBytes(p);
 
@@ -99,17 +107,21 @@ public class Storage {
     public Reply writeBytes(WriteRequest write) {
         Path p = dirPath.resolve(write.getPath());
         File f = p.toFile();
+
+        // check if file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, write.getId());
         }
 
+        // check that offset is valid
         if (write.getOffset() >= f.length()) {
             return new Reply((byte) 11, write.getId());
         } else if (write.getOffset() < 0) {
             return new Reply((byte) 12, write.getId());
         }
 
+        // write operation
         try {
             byte[] bytes = Files.readAllBytes(p);
             byte[] output = new byte[bytes.length + write.getInput().length];
@@ -129,11 +141,14 @@ public class Storage {
     public Reply getProperties(PropertiesRequest req) {
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check if file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
 
+        // fetching of file properties: last modified, creation time, size
         try {
             BasicFileAttributes attr = Files.readAttributes(p, BasicFileAttributes.class);
             Cache.Record record = new Cache.Record(System.currentTimeMillis(),
@@ -153,21 +168,28 @@ public class Storage {
     public Reply registerCheck(RegisterRequest req) {
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check if file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
+
+        // file exists, can start monitoring
         return new Reply((byte) 3, req.getId());
     }
 
     public Reply getUpdatedFile(RegisterRequest req){
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check that file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
 
+        // send reply with code corresponding to update
         try {
             byte[] output = Files.readAllBytes(p);
             return new Reply((byte) 7, req.getId(), output);
@@ -199,6 +221,7 @@ public class Storage {
     }
 
     public static String humanReadableByteCountSI(long bytes) {
+        // make bytes readable
         if (-1000 < bytes && bytes < 1000) {
             return bytes + " B";
         }
@@ -213,10 +236,14 @@ public class Storage {
     public Reply deleteFile(DeleteRequest req) {
         Path p = dirPath.resolve(req.getPath());
         File f = p.toFile();
+
+        // check that file exists
         if (!f.exists() || !f.isFile()) {
             System.out.println("Error: invalid path " + p);
             return new Reply((byte) 10, req.getId());
         }
+
+        // actually delete the file
         if (f.delete()) {
             System.out.println("File " +  p + " deleted successfully.");
             return new Reply(DeleteRequest.code, req.getId());

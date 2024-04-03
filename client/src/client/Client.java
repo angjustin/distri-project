@@ -14,12 +14,13 @@ public class Client {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 2222;
     private static volatile boolean isMonitoring = false;
-
     private static final int FRESHNESS = 5000;
 
     public static void main(String[] args) {
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+
+            // intialise cache with defined freshness interval
             Cache cache = new Cache(FRESHNESS);
             int MAX_RETRIES = 5;
             int TIMEOUT_MILLISECONDS = 2500;
@@ -237,6 +238,7 @@ public class Client {
                                 Reply reply = (Reply) Marshalling.deserialize(receivedData);
                                 reply.printClient();
 
+                                // break if file not found
                                 if (reply.getResult() == (byte)10) {
                                     break;
                                 }
@@ -245,6 +247,7 @@ public class Client {
                                 startMonitoring();
                                 long startTime = System.currentTimeMillis();
                                 Timer timer = new Timer();
+                                // turn off monitoring after interval ends
                                 timer.schedule(new TimerTask() {
                                     @Override
                                     public void run() {
@@ -252,15 +255,18 @@ public class Client {
                                     }
                                 }, interval * 1000L);
 
+                                // wait for updates
                                 while (isMonitoring){
                                     receiveBuffer = new byte[1024];
                                     receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                                    // set timeout to remaining monitoring time
                                     long timeElapsed = System.currentTimeMillis() - startTime;
                                     if (timeElapsed > (interval * 1000L)) {
                                         break;
                                     } else {
                                         socket.setSoTimeout((int) (interval * 1000L - timeElapsed));
                                     }
+                                    // receive updates
                                     try {
                                         socket.receive(receivePacket);
 
@@ -269,18 +275,14 @@ public class Client {
                                         reply = (Reply) Marshalling.deserialize(receivedData);
 
                                         reply.printClient();
-                                        // if file does not exist
-                                        if (reply.getResult() == (byte)10) {
-                                            break;
-                                        }
 
                                     } catch (SocketTimeoutException e) {
-                                        // Handle timeout (no datagram received within the timeout period)
-                                        // Example: Print a message indicating no data received
+                                        // This timeout will occur at end of monitoring period
                                         System.out.println("No further updates to file.");
                                     }
                                 }
-                                socket.setSoTimeout(Integer.MAX_VALUE);
+                                // set timeout back to previous setting
+                                socket.setSoTimeout(TIMEOUT_MILLISECONDS);
 
 
                             }

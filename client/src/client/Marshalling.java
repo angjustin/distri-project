@@ -8,16 +8,19 @@ import java.util.Arrays;
 
 public class Marshalling {
 
+    // helper function for integer to bytes
     public static byte[] getBytes(int x) {
         ByteBuffer b = ByteBuffer.allocate(4);
         return b.putInt(x).array();
     }
 
+    // helper function for long to bytes
     public static byte[] getBytes(long x) {
         ByteBuffer b = ByteBuffer.allocate(8);
         return b.putLong(x).array();
     }
 
+    // serialise read request
     public static byte[] serialize(ReadRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), offset (4B), length (4B), id (8B)
@@ -46,6 +49,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise write request
     public static byte[] serialize(WriteRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable)
@@ -78,6 +82,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise properties request
     public static byte[] serialize(PropertiesRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), id (8B)
@@ -93,6 +98,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise delete request
     public static byte[] serialize(DeleteRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), id (8B)
@@ -107,6 +113,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise register request
     public static byte[] serialize(RegisterRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), interval (4b), id (8B)
@@ -127,6 +134,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise file request
     public static byte[] serialize(FileRequest req) {
         if (req == null) return null;
         // code (1B), path length (4B), path (variable), id (8B)
@@ -142,6 +150,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise cache record
     public static byte[] serialize(Cache.Record record) {
         if (record == null) return null;
         // code (1B), local (8B), server (8B), creation (8B), size (8B)
@@ -159,6 +168,7 @@ public class Marshalling {
         return output;
     }
 
+    // serialise reply
     public static byte[] serialize(Reply reply) {
         if (reply == null) return null;
 
@@ -175,14 +185,17 @@ public class Marshalling {
     }
 
     public static Object deserialize(byte[] bytes) {
+        // check that byte array exists and is not empty
         if (bytes == null) return null;
         if (bytes.length == 0) {
             System.out.println("Error: deserialize input empty");
             return null;
         }
 
+        // fetch code corresponding to request type
         byte code = bytes[0];
 
+        // deserialise read request
         if (code == ReadRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
@@ -193,8 +206,9 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new ReadRequest(path, offset, length, id);
-
-        } else if (code == WriteRequest.code) {
+        }
+        // deserialise write request
+        else if (code == WriteRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
             int inputLength = ByteBuffer.wrap(bytes, 5 + pathLength, 4).getInt();
@@ -204,14 +218,17 @@ public class Marshalling {
 
             String path = new String(pathBytes);
             return new WriteRequest(path, offset, inputBytes, id);
-
-        } else if (code == Reply.code) {
+        }
+        // deserialise reply
+        else if (code == Reply.code) {
             byte result = bytes[1];
             long id = ByteBuffer.wrap(bytes, 2, 8).getLong();
             byte[] body = Arrays.copyOfRange(bytes, 10, bytes.length);
 
             return new Reply(result, id, body);
-        } else if (code == PropertiesRequest.code) {
+        }
+        // deserialise properties request
+        else if (code == PropertiesRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
             long id = ByteBuffer.wrap(bytes, 5 + pathLength, 8).getLong();
@@ -219,6 +236,7 @@ public class Marshalling {
             String path = new String(pathBytes);
             return new PropertiesRequest(path, id);
         }
+        // deserialise delete request
         else if (code == DeleteRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
@@ -226,6 +244,7 @@ public class Marshalling {
             String path = new String(pathBytes);
             return new DeleteRequest(path, id);
         }
+        // deserialise register request
         else if (code == RegisterRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
@@ -233,25 +252,36 @@ public class Marshalling {
             long id = ByteBuffer.wrap(bytes, 9 + pathLength, 8).getLong();
             String path = new String(pathBytes);
             return new RegisterRequest(path, interval, id);
-        } else if (code == Cache.Record.code) {
+        }
+        // deserialise cache record
+        else if (code == Cache.Record.code) {
             long local = ByteBuffer.wrap(bytes, 1, 8).getLong();
             long server = ByteBuffer.wrap(bytes, 9, 8).getLong();
             long creation = ByteBuffer.wrap(bytes, 17, 8).getLong();
             long size = ByteBuffer.wrap(bytes, 25, 8).getLong();
             return new Cache.Record(local, server, creation, size);
-        } else if (code == FileRequest.code) {
+
+
+        }
+        // deserialise file request
+        else if (code == FileRequest.code) {
             int pathLength = ByteBuffer.wrap(bytes, 1, 4).getInt();
             byte[] pathBytes = Arrays.copyOfRange(bytes, 5, 5 + pathLength);
             long id = ByteBuffer.wrap(bytes, 5 + pathLength, 8).getLong();
 
             String path = new String(pathBytes);
             return new FileRequest(path, id);
-        } else {
+
+
+        }
+        // unknown code
+        else {
             System.out.println("Error: request header invalid");
             return null;
         }
     }
 
+    // test marshalling and unmarshalling
     public static void main(String[] args) {
         String filePath = "test.txt";
         ReadRequest readRequest = new ReadRequest(filePath, 5, 30);
