@@ -203,10 +203,8 @@ public class Server {
             return;
         }
         for (Map.Entry<String, ClientInfo> entry : registeredClients.entrySet()){
-            // calculate expiry time
-            Instant expiry = entry.getValue().getStartTime().plusSeconds(entry.getValue().getRegisterRequest().getMonitorInterval());
             // current time is past the expiry time
-            if (Instant.now().compareTo(expiry) > 0){
+            if (Instant.now().compareTo(entry.getValue().getExpiry()) > 0){
                 deregisterClient(entry.getKey());
             }
         }

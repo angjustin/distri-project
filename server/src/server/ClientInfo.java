@@ -8,14 +8,15 @@ import java.time.Instant;
 public class ClientInfo {
     InetAddress address;
     int port;
-    Instant startTime;
+    Instant expiry;
     RegisterRequest registerRequest;
 
     public ClientInfo(InetAddress address, int port, RegisterRequest registerRequest) {
         this.address = address;
         this.port = port;
         this.registerRequest = registerRequest;
-        this.startTime  = Instant.now();
+        // calculate expiry time
+        this.expiry  = Instant.now().plusSeconds(registerRequest.getMonitorInterval());
     }
 
     public int getPort() {
@@ -26,8 +27,8 @@ public class ClientInfo {
         return address;
     }
 
-    public Instant getStartTime() {
-        return startTime;
+    public Instant getExpiry() {
+        return expiry;
     }
 
     public RegisterRequest getRegisterRequest() { return registerRequest; }
