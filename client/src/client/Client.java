@@ -17,11 +17,22 @@ public class Client {
     private static final int FRESHNESS = 5000;
 
     public static void main(String[] args) {
+        // args: Server address (string), Server port (int), Freshness interval (int)
         try (DatagramSocket socket = new DatagramSocket()) {
             InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+            int serverPort = SERVER_PORT;
+            int freshness = FRESHNESS;
+            if (args.length == 3) {
+                // if all arguments are present, set client settings to them
+                serverAddress = InetAddress.getByName(args[0]);
+                serverPort = Integer.parseInt(args[1]);
+                freshness = Integer.parseInt(args[2]);
+            }
+
+
 
             // intialise cache with defined freshness interval
-            Cache cache = new Cache(FRESHNESS);
+            Cache cache = new Cache(freshness);
             int MAX_RETRIES = 5;
             int TIMEOUT_MILLISECONDS = 2500;
 
@@ -75,7 +86,7 @@ public class Client {
                         PropertiesRequest propRequest = new PropertiesRequest(filePath);
                         // Serialise properties request
                         byte[] sendBuffer = Marshalling.serialize(propRequest);
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
                         // Initialise other variables
                         Reply reply = null;
                         byte[] receiveBuffer = new byte[1024];
@@ -99,6 +110,7 @@ public class Client {
                         }
                         if (!responseReceived) {
                             System.out.println("Maximum retries reached. Unable to complete request.");
+                            break;
                         }
                         if (reply.getResult() != PropertiesRequest.code) {
                             reply.printClient();
@@ -121,7 +133,7 @@ public class Client {
                         FileRequest fileRequest = new FileRequest(filePath);
                         // Serialise file request
                         sendBuffer = Marshalling.serialize(fileRequest);
-                        sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
 
                         // Retransmit request messages as a fault tolerance measure
                         while (!responseReceived  && retries < MAX_RETRIES){
@@ -149,6 +161,7 @@ public class Client {
                         }
                         if (!responseReceived) {
                             System.out.println("Maximum retries reached. Unable to complete request.");
+                            break;
                         }
                         // Add to cache
                         byte[] fileBytes = reply.getBody();
@@ -175,7 +188,7 @@ public class Client {
                         boolean responseReceived = false;
                         int retries = 0;
                         byte [] sendBuffer = Marshalling.serialize(writeRequest);
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
 
                         // Retransmit request messages as a fault tolerance measure
                         while (!responseReceived  && retries < MAX_RETRIES){
@@ -218,7 +231,7 @@ public class Client {
                         int retries = 0;
 
                         byte[] sendBuffer = Marshalling.serialize(registerRequest);
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
 
                         // Retransmit request messages as a fault tolerance measure
                         while (!responseReceived  && retries < MAX_RETRIES){
@@ -313,7 +326,7 @@ public class Client {
 
                         // Serialize DeleteRequest object
                         byte[] sendBuffer = Marshalling.serialize(req);
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
 
                         while (!responseReceived && retries < MAX_RETRIES){
                             try{
@@ -351,7 +364,7 @@ public class Client {
                         boolean responseReceived = false;
                         int retries = 0;
                         byte[] sendBuffer = Marshalling.serialize(req);
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, SERVER_PORT);
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, serverAddress, serverPort);
 
                         while (!responseReceived && retries < MAX_RETRIES){
                             try{

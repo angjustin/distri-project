@@ -1,7 +1,5 @@
 package client;
 
-import server.Reply;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -85,31 +83,45 @@ public class Cache {
         return this.records.containsKey(path);
     }
 
+    // check if a file's record is older than the freshness interval
     public boolean isRecordStale(String path) {
         // check if cache entry is still fresh
         if (!hasRecord(path)) return true;
 
         Record record = records.get(path);
-        return System.currentTimeMillis() - record.localValidMillis >= freshness;
+        return System.currentTimeMillis() - record.localValidMillis > freshness;
     }
 
+    // check if the record of a given file has the same last modified time as the given record
     public boolean isRecordValid(String path, Record serverRecord) {
         if (!hasRecord(path)) return false;
         return records.get(path).getServerValidMillis() == serverRecord.getServerValidMillis();
     }
 
+    // replaces an old record with a new one of the same file path
     public void refreshRecord(String path, Record record) {
         if (!hasRecord(path)) return;
         records.put(path, record);
     }
 
+    // read bytes from a cached file
     public byte[] getBytes(ReadRequest request) {
         byte[] bytes = this.files.get(request.getPath());
-        if (bytes == null) return null;
+        if (bytes == null) {
+            System.out.println("Error: File does not exist");
+            return null;
+        }
 
         if (request.getOffset() >= bytes.length) {
+            System.out.println("Error: Offset exceeds file length");
             return null;
         } else if (request.getOffset() < 0) {
+            System.out.println("Error: Offset less than 0");
+            return null;
+        }
+
+        if (request.getLength() < 0) {
+            System.out.println("Error: Number of bytes to read less than 0");
             return null;
         }
 
@@ -123,8 +135,10 @@ public class Cache {
     public void printFile(ReadRequest request) {
         byte[] bytes = getBytes(request);
         System.out.println();
-        System.out.println(new String(bytes));
-        System.out.println();
+        if (bytes != null) {
+            System.out.println(new String(bytes));
+            System.out.println();
+        }
     }
 
     public void addFile(String path, Record record, byte[] bytes) {

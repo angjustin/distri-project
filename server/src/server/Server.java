@@ -10,15 +10,24 @@ import java.util.*;
 public class Server {
     private static final int PORT = 2222;
     // hashmap storing clients registered for file updates
-    private static Map<String, ClientInfo> registeredClients = new HashMap<>();
+    private static final Map<String, ClientInfo> registeredClients = new HashMap<>();
     // hashmap storing processed requests
-    private static Map<Long, Reply> processedRequests = new HashMap<>();
+    private static final Map<Long, Reply> processedRequests = new HashMap<>();
 
     // At-most-once semantics: Duplicate filtering and retransmission of reply
-    private static final Boolean isAtMostOnce = false;
+    private static final Boolean IS_AT_MOST_ONCE = false;
 
     public static void main(String[] args) {
+        // args: isAtMostOnce (0 or 1), experimentMode (0 or 1)
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
+            boolean isAtMostOnce = IS_AT_MOST_ONCE;
+            boolean isExperimentMode = false;
+
+            if (args.length == 2) {
+                isAtMostOnce = Integer.parseInt(args[0]) != 0;
+                isExperimentMode = Integer.parseInt(args[1]) != 0;
+            }
+
             System.out.println("Server is running...");
             Storage storage = new Storage();
             System.out.println();
@@ -31,7 +40,7 @@ public class Server {
                 // Get client information (address and port)
                 InetAddress clientAddress = receivePacket.getAddress();
                 int clientPort = receivePacket.getPort();
-                // Deserialise reply to get request type
+                // Deserialize reply to get request type
                 Object request = Marshalling.deserialize(receivedData);
                 byte[] replyData;
                 System.out.println("Received request...");
@@ -65,13 +74,13 @@ public class Server {
                             socket.send(sendPacket);
                             continue;
                         }
-                        replyData = Marshalling.serialize(storage.writeBytes((WriteRequest) request));
+                        replyData = Marshalling.serialize(storage.writeBytes(writeRequest));
                         // remove any expired entries
                         removeAllExpired();
                         // notify any subscribed clients
                         System.out.println("Notifying");
                         for (Map.Entry<String, ClientInfo> entry : registeredClients.entrySet()){
-                            if (Objects.equals(((WriteRequest) request).getPath(), entry.getValue().getRegisterRequest().getPath())){
+                            if (Objects.equals((writeRequest).getPath(), entry.getValue().getRegisterRequest().getPath())){
                                 Reply notif = storage.getUpdatedFile(entry.getValue().getRegisterRequest());
                                 notif.print();
                                 byte[] notifBytes = Marshalling.serialize(notif);
@@ -110,7 +119,7 @@ public class Server {
                             socket.send(sendPacket);
                             continue;
                         }
-                        Reply reply = storage.registerCheck((RegisterRequest) request);
+                        Reply reply = storage.registerCheck(registerRequest);
                         replyData = Marshalling.serialize(reply);
                         if (reply.getResult() == RegisterRequest.code) {
                             ClientInfo clientInfo = new ClientInfo(clientAddress, clientPort, registerRequest);
@@ -147,7 +156,7 @@ public class Server {
                             socket.send(sendPacket);
                             continue;
                         }
-                        Reply reply = storage.deleteFile((DeleteRequest) request);
+                        Reply reply = storage.deleteFile(deleteRequest);
                         replyData = Marshalling.serialize(reply);
                         deleteRequest.print();
                     }
@@ -163,12 +172,12 @@ public class Server {
 
                 // Mark request as processed
                 // EXPERIMENT: Simulate lost of packet from server to client and do not send to client for first request
-                if (!isDuplicateRequest(requestId)){
+                if (isExperimentMode && !isDuplicateRequest(requestId)){
                     markRequestAsProcessed(requestId, reply);
                 }
                 // Send duplicate requests to client
                 else {
-                    System.out.println("Sending reply 2");
+                    markRequestAsProcessed(requestId, reply);
                     reply.print();
                     DatagramPacket sendPacket = new DatagramPacket(replyData, replyData.length, clientAddress, clientPort);
                     socket.send(sendPacket);

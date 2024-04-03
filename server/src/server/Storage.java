@@ -32,6 +32,7 @@ public class Storage {
             entry(b(10), "File does not exist"),
             entry(b(11), "Offset exceeds file length"),
             entry(b(12), "Offset less than 0"),
+            entry(b(13), "Number of bytes to read less than 0"),
             entry(b(20), "Null reply")
     );
 
@@ -87,6 +88,11 @@ public class Storage {
             return new Reply((byte) 11, req.getId());
         } else if (req.getOffset() < 0) {
             return new Reply((byte) 12, req.getId());
+        }
+
+        // ensure length of bytes to read is positive
+        if (req.getLength() < 0) {
+            return new Reply((byte) 13, req.getId());
         }
 
         // read specified number of bytes
