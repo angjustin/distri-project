@@ -15,16 +15,16 @@ public class Server {
     private static final Map<Long, Reply> processedRequests = new HashMap<>();
 
     // At-most-once semantics: Duplicate filtering and retransmission of reply
-    private static final Boolean IS_AT_MOST_ONCE = false;
+    private static final Boolean AT_MOST_ONCE = false;
 
     public static void main(String[] args) {
         // args: isAtMostOnce (0 or 1), experimentMode (0 or 1)
         try (DatagramSocket socket = new DatagramSocket(PORT)) {
-            boolean isAtMostOnce = IS_AT_MOST_ONCE;
+            boolean atMostOnce = AT_MOST_ONCE;
             boolean isExperimentMode = false;
 
             if (args.length == 2) {
-                isAtMostOnce = Integer.parseInt(args[0]) != 0;
+                atMostOnce = Integer.parseInt(args[0]) != 0;
                 isExperimentMode = Integer.parseInt(args[1]) != 0;
             }
 
@@ -50,7 +50,7 @@ public class Server {
                 switch (request) {
                     case ReadRequest readRequest -> {
                         requestId = readRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             replyData = Marshalling.serialize(reply);
@@ -66,7 +66,7 @@ public class Server {
 
                     case WriteRequest writeRequest -> {
                         requestId = writeRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             replyData = Marshalling.serialize(reply);
@@ -95,7 +95,7 @@ public class Server {
 
                     case PropertiesRequest propertiesRequest -> {
                         requestId = propertiesRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             System.out.println("Sending reply...");
@@ -111,7 +111,7 @@ public class Server {
 
                     case RegisterRequest registerRequest -> {
                         requestId = registerRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             replyData = Marshalling.serialize(reply);
@@ -130,7 +130,7 @@ public class Server {
 
                     case FileRequest fileRequest -> {
                         requestId = fileRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             System.out.println("Sending reply...");
@@ -146,7 +146,7 @@ public class Server {
 
                     case DeleteRequest deleteRequest -> {
                         requestId = deleteRequest.getId();
-                        if (isAtMostOnce && isDuplicateRequest(requestId)){
+                        if (atMostOnce && isDuplicateRequest(requestId)){
                             // Retransmit reply
                             Reply reply = processedRequests.get(requestId);
                             System.out.println("Sending reply...");

@@ -222,7 +222,7 @@ public class Client {
                         System.out.println("Service 3: Monitor updates made to a file's content for a designated time period.");
                         System.out.print("Enter file pathname: ");
                         String filePath = InputManager.getString();
-                        System.out.println("Enter monitor interval (in seconds): ");
+                        System.out.print("Enter monitor interval (in seconds): ");
                         int interval = InputManager.getInt();
                         RegisterRequest registerRequest = new RegisterRequest(filePath, interval);
 
